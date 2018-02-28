@@ -50,6 +50,7 @@ namespace RockWeb.Blocks.Administration
         private ReactivatePeople _reactivateSettings = new ReactivatePeople();
         private InactivatePeople _inactivateSettings = new InactivatePeople();
         private UpdateFamilyCampus _campusSettings = new UpdateFamilyCampus();
+        private MoveAdultChildren _adultChildrenSettings = new MoveAdultChildren();
         private List<InteractionItem> _interactionChannelTypes = new List<InteractionItem>();
         private List<CampusCache> _campuses = new List<CampusCache>();
 
@@ -174,12 +175,48 @@ namespace RockWeb.Blocks.Administration
                 toCampus.Campuses = _campuses;
                 toCampus.SelectedCampusId = ignoreCampusChangeRow.ToCampusId;
 
-                ddlCampusAttendanceOrGiving.BindToEnum<CampusCriteria>( true, new CampusCriteria[] { CampusCriteria.Ignore } );
                 if ( ignoreCampusChangeRow.CampusCriteria.HasValue )
                 {
                     ddlCampusAttendanceOrGiving.SetValue( ignoreCampusChangeRow.CampusCriteria.ConvertToInt() );
                 }
             }
+        }
+
+        /// <summary>
+        /// Handles the CheckedChanged event of the cbReactivatePeople control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void cbReactivatePeople_CheckedChanged( object sender, EventArgs e )
+        {
+            pnlReactivatePeople.Enabled = cbReactivatePeople.Checked;
+        }
+        /// <summary>
+        /// Handles the CheckedChanged event of the cbInactivatePeople control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void cbInactivatePeople_CheckedChanged( object sender, EventArgs e )
+        {
+            pnlInactivatePeople.Enabled = cbInactivatePeople.Checked;
+        }
+        /// <summary>
+        /// Handles the CheckedChanged event of the cbCampusUpdate control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void cbCampusUpdate_CheckedChanged( object sender, EventArgs e )
+        {
+            pnlCampusUpdate.Enabled = cbCampusUpdate.Checked;
+        }
+        /// <summary>
+        /// Handles the CheckedChanged event of the cbAdultChildren control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void cbAdultChildren_CheckedChanged( object sender, EventArgs e )
+        {
+            pnlAdultChildren.Enabled = cbAdultChildren.Checked;
         }
 
         #endregion
@@ -191,8 +228,6 @@ namespace RockWeb.Blocks.Administration
         /// </summary>
         private void BindControls()
         {
-            pwGeneralSettings.Expanded = true;
-
             rlbAttendanceInGroupType.DataSource = new GroupTypeService( _rockContext )
                 .Queryable().AsNoTracking()
                 .OrderBy( t => t.Order )
@@ -215,6 +250,13 @@ namespace RockWeb.Blocks.Administration
             rlbNoPersonAttributes.DataBind();
 
             ddlAttendanceOrGiving.BindToEnum<CampusCriteria>();
+
+            var knownRelGroupType = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid() );
+            if ( knownRelGroupType != null )
+            {
+                rpParentRelationship.GroupTypeId = knownRelGroupType.Id;
+                rpSiblingRelationship.GroupTypeId = knownRelGroupType.Id;
+            }
         }
 
         /// <summary>
@@ -222,20 +264,25 @@ namespace RockWeb.Blocks.Administration
         /// </summary>
         private void GetSettings()
         {
-            //Get General
+            // Get General Settings
             nbGenderAutoFill.Text = Rock.Web.SystemSettings.GetValue( SystemSetting.GENDER_AUTO_FILL_CONFIDENCE );
 
-            //Get Ncoa Configuration
+            // Get Ncoa Configuration Settings
             nbMinMoveDistance.Text = Rock.Web.SystemSettings.GetValue( SystemSetting.NCOA_MINIMUM_MOVE_DISTANCE_TO_INACTIVATE );
             cb48MonAsPrevious.Checked = Rock.Web.SystemSettings.GetValue( SystemSetting.NCOA_SET_48_MONTH_AS_PREVIOUS ).AsBoolean();
             cbInvalidAddressAsPrevious.Checked = Rock.Web.SystemSettings.GetValue( SystemSetting.NCOA_SET_INVALID_AS_PREVIOUS ).AsBoolean();
 
+            // Get Data Automation Settings
             _reactivateSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE ).FromJsonOrNull<ReactivatePeople>() ?? new ReactivatePeople();
             _inactivateSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_INACTIVATE_PEOPLE ).FromJsonOrNull<InactivatePeople>() ?? new InactivatePeople();
-            _campusSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_CAMPUS ).FromJsonOrNull<UpdateFamilyCampus>() ?? new UpdateFamilyCampus();
+            _campusSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_CAMPUS_UPDATE ).FromJsonOrNull<UpdateFamilyCampus>() ?? new UpdateFamilyCampus();
+            _adultChildrenSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_ADULT_CHILDREN ).FromJsonOrNull<MoveAdultChildren>() ?? new MoveAdultChildren();
 
-            //Get Data Automation
+            // Set Data Automation Controls
+
+            // Reactivate
             cbReactivatePeople.Checked = _reactivateSettings.IsEnabled;
+            pnlReactivatePeople.Enabled = _reactivateSettings.IsEnabled;
             cbLastContribution.Checked = _reactivateSettings.IsLastContributionEnabled;
             nbLastContribution.Text = _reactivateSettings.LastContributionPeriod.ToStringSafe();
             cbAttendanceInServiceGroup.Checked = _reactivateSettings.IsAttendanceInServiceGroupEnabled;
@@ -277,8 +324,9 @@ namespace RockWeb.Blocks.Administration
             rInteractions.DataSource = reactivateChannelTypes;
             rInteractions.DataBind();
 
-            //Inactivate
+            // Inactivate
             cbInactivatePeople.Checked = _inactivateSettings.IsEnabled;
+            pnlInactivatePeople.Enabled = _inactivateSettings.IsEnabled;
             cbNoLastContribution.Checked = _inactivateSettings.IsNoLastContributionEnabled;
             nbNoLastContribution.Text = _inactivateSettings.NoLastContributionPeriod.ToStringSafe();
             cbNoAttendanceInServiceGroup.Checked = _inactivateSettings.IsNoAttendanceInServiceGroupEnabled;
@@ -312,8 +360,9 @@ namespace RockWeb.Blocks.Administration
             rNoInteractions.DataSource = inactivateChannelTypes;
             rNoInteractions.DataBind();
 
-            //campus Update
+            // campus Update
             cbCampusUpdate.Checked = _campusSettings.IsEnabled;
+            pnlCampusUpdate.Enabled = _campusSettings.IsEnabled;
             cbMostFamilyAttendance.Checked = _campusSettings.IsMostFamilyAttendanceEnabled;
             nbMostFamilyAttendance.Text = _campusSettings.MostFamilyAttendancePeriod.ToStringSafe();
             cbMostFamilyGiving.Checked = _campusSettings.IsMostFamilyGivingEnabled;
@@ -341,6 +390,17 @@ namespace RockWeb.Blocks.Administration
             }
             rIgnoreCampusChanges.DataSource = _ignoreCampusChangeRows;
             rIgnoreCampusChanges.DataBind();
+
+            // Adult Children
+            cbAdultChildren.Checked = _adultChildrenSettings.IsEnabled;
+            pnlAdultChildren.Enabled = _adultChildrenSettings.IsEnabled;
+            nbAdultAge.Text = _adultChildrenSettings.AdultAge.ToString();
+            rpParentRelationship.GroupRoleId = _adultChildrenSettings.ParentRelationshipId;
+            rpSiblingRelationship.GroupRoleId = _adultChildrenSettings.SiblingRelationshipId;
+            cbSameAddress.Checked = _adultChildrenSettings.UseSameHomeAddress;
+            cbSamePhone.Checked = _adultChildrenSettings.UseSameHomePhone;
+            wfWorkflows.SetValues( _adultChildrenSettings.WorkflowTypeIds );
+            nbMaxRecords.Text = _adultChildrenSettings.MaximumRecords.ToString();
         }
 
         private void SaveSettings()
@@ -379,10 +439,10 @@ namespace RockWeb.Blocks.Administration
             _reactivateSettings.PersonAttributesDays = nbPersonAttributes.Text.AsInteger();
 
             _reactivateSettings.IsIncludeDataViewEnabled = cbIncludeDataView.Checked;
-            _reactivateSettings.IncludeDataView = dvIncludeDataView.SelectedValue;
+            _reactivateSettings.IncludeDataView = dvIncludeDataView.SelectedValueAsInt();
 
             _reactivateSettings.IsExcludeDataViewEnabled = cbExcludeDataView.Checked;
-            _reactivateSettings.ExcludeDataView = dvExcludeDataView.SelectedValue;
+            _reactivateSettings.ExcludeDataView = dvExcludeDataView.SelectedValueAsInt();
 
             _reactivateSettings.IsInteractionsEnabled = cbInteractions.Checked;
             foreach ( RepeaterItem rItem in rInteractions.Items )
@@ -424,7 +484,7 @@ namespace RockWeb.Blocks.Administration
             _inactivateSettings.NoPersonAttributesDays = nbNoPersonAttributes.Text.AsInteger();
 
             _inactivateSettings.IsNotInDataviewEnabled = cbNotInDataView.Checked;
-            _inactivateSettings.NotInDataview = dvNotInDataView.SelectedValue;
+            _inactivateSettings.NotInDataview = dvNotInDataView.SelectedValueAsInt();
 
             _inactivateSettings.IsNoInteractionsEnabled = cbNoInteractions.Checked;
             foreach ( RepeaterItem rItem in rNoInteractions.Items )
@@ -445,7 +505,7 @@ namespace RockWeb.Blocks.Administration
             }
 
             //Campus Update
-            _campusSettings.IsEnabled = cbCampusUpdate.Checked;
+            _campusSettings.IsEnabled = cbAdultChildren.Checked;
 
             _campusSettings.IsMostFamilyAttendanceEnabled = cbMostFamilyAttendance.Checked;
             _campusSettings.MostFamilyAttendancePeriod = nbMostFamilyAttendance.Text.AsInteger();
@@ -470,9 +530,20 @@ namespace RockWeb.Blocks.Administration
                     } )
                     .ToList();
 
+            // Adult Children
+            _adultChildrenSettings.IsEnabled = cbAdultChildren.Checked;
+            _adultChildrenSettings.AdultAge = nbAdultAge.Text.AsIntegerOrNull() ?? 18;
+            _adultChildrenSettings.ParentRelationshipId = rpParentRelationship.GroupRoleId;
+            _adultChildrenSettings.SiblingRelationshipId = rpSiblingRelationship.GroupRoleId;
+            _adultChildrenSettings.UseSameHomeAddress = cbSameAddress.Checked;
+            _adultChildrenSettings.UseSameHomePhone = cbSamePhone.Checked;
+            _adultChildrenSettings.WorkflowTypeIds = wfWorkflows.SelectedValuesAsInt().ToList();
+            _adultChildrenSettings.MaximumRecords = nbMaxRecords.Text.AsIntegerOrNull() ?? 200;
+
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE, _reactivateSettings.ToJson() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_INACTIVATE_PEOPLE, _inactivateSettings.ToJson() );
-            Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_CAMPUS, _campusSettings.ToJson() );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_CAMPUS_UPDATE, _campusSettings.ToJson() );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_ADULT_CHILDREN, _adultChildrenSettings.ToJson() );
         }
 
         private void GetRepeaterData()
@@ -508,5 +579,6 @@ namespace RockWeb.Blocks.Administration
         }
 
         #endregion
+
     }
 }

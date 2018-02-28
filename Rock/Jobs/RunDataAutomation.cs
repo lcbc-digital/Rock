@@ -1,14 +1,30 @@
-﻿using System;
+﻿// <copyright>
+// Copyright by the Spark Development Network
+//
+// Licensed under the Rock Community License (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.rockrms.com/license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// </copyright>
+//
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using Quartz;
 using Rock.Data;
 using Rock.Model;
 using Rock.SystemKey;
-using Rock.Utility.Settings.DataAutomation;
 using Rock.Web.Cache;
 
 namespace Rock.Jobs
@@ -19,25 +35,6 @@ namespace Rock.Jobs
     [DisallowConcurrentExecution]
     public class RunDataAutomation : IJob
     {
-        #region Private Fields
-
-        /// <summary>
-        /// The reactivate people settings
-        /// </summary>
-        private ReactivatePeople _reactivateSettings = new ReactivatePeople();
-
-        /// <summary>
-        /// The inactivate people settings
-        /// </summary>
-        private InactivatePeople _inactivateSettings = new InactivatePeople();
-
-        /// <summary>
-        /// The campus settings
-        /// </summary>
-        private UpdateFamilyCampus _campusSettings = new UpdateFamilyCampus();
-
-        #endregion Private Fields
-
         #region Constructor
 
         /// <summary> 
@@ -49,9 +46,6 @@ namespace Rock.Jobs
         /// </summary>
         public RunDataAutomation()
         {
-            _reactivateSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE ).FromJsonOrNull<ReactivatePeople>();
-            _inactivateSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_INACTIVATE_PEOPLE ).FromJsonOrNull<InactivatePeople>();
-            _campusSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_CAMPUS ).FromJsonOrNull<UpdateFamilyCampus>();
         }
 
         #endregion Constructor
@@ -63,631 +57,970 @@ namespace Rock.Jobs
         /// <exception cref="System.NotImplementedException"></exception>
         public void Execute( IJobExecutionContext context )
         {
-            List<Exception> dataAutomationSettingException = new List<Exception>();
-            if ( _reactivateSettings != null && _reactivateSettings.IsEnabled )
+            string reactivateResult = ReactivatePeople( context );
+            string inactivateResult = InactivatePeople( context );
+            string updateFamilyCampusResult = UpdateFamilyCampus( context );
+            string moveAdultChildrenResult = MoveAdultChildren( context );
+
+            context.UpdateLastStatusMessage( $@"
+Reactivate People: {reactivateResult}, 
+Inactivate People: {inactivateResult}, 
+Update Family Campus: {updateFamilyCampusResult},
+Move Adult Children: {moveAdultChildrenResult}
+" );
+        }
+
+        #region Reactivate People
+
+        private string ReactivatePeople( IJobExecutionContext context )
+        {
+            try
             {
-                ProcessReactivateSetting();
-            }
-
-            if ( _inactivateSettings != null && _inactivateSettings.IsEnabled )
-            {
-                ProcessInactivateSetting();
-            }
-
-            if ( _campusSettings != null && _campusSettings.IsEnabled )
-            {
-                var familyGroupTypeId = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY ).Id;
-
-                List<Group> families = null;
-
-                using ( RockContext rockContext = new RockContext() )
+                var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE ).FromJsonOrNull<Utility.Settings.DataAutomation.ReactivatePeople>();
+                if ( settings == null || !settings.IsEnabled )
                 {
-                    families = new GroupMemberService( rockContext )
-                        .Queryable( "Group.Members.Person" )
-                        .Where( m => m.Group.GroupTypeId == familyGroupTypeId )
-                        .OrderBy( m => m.GroupOrder ?? int.MaxValue )
-                        .DistinctBy( a => a.GroupId )
-                        .Select( m => m.Group )
-                        .ToList();
-
+                    return "Not Enabled";
                 }
 
-                if ( _campusSettings.IsIgnoreIfManualUpdateEnabled )
+                // Get the family group type
+                var familyGroupType = GroupTypeCache.Read( SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid() );
+                if ( familyGroupType == null )
                 {
-                    var personEntityTypeId = EntityTypeCache.Read( typeof( Rock.Model.Person ) ).Id;
-                    using ( RockContext rockContext = new RockContext() )
-                    {
-                        var startPeriod = RockDateTime.Now.AddDays( -_campusSettings.IgnoreIfManualUpdatePeriod );
-                        var familiesWithManualUpdate = new HistoryService( rockContext )
-                            .Queryable().AsNoTracking()
-                            .Where( m => m.EntityTypeId == personEntityTypeId &&
-                                m.Summary.Contains( "Modified <span class='field name'>Campus</span>" ) &&
-                                m.CreatedDateTime >= startPeriod && m.RelatedEntityId.HasValue )
-                            .Select( a => a.RelatedEntityId.Value )
-                            .ToList();
+                    throw new Exception( "Could not determine the 'Family' group type." );
+                }
 
-                        families.RemoveAll( a => familiesWithManualUpdate.Contains( a.Id ) );
+                // Get the active record status defined value
+                var activeStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid() );
+                if ( activeStatus == null )
+                {
+                    throw new Exception( "Could not determine the 'Active' record status type." );
+                }
+
+                // Get the inactive record status defined value
+                var inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid() );
+                if ( inactiveStatus == null )
+                {
+                    throw new Exception( "Could not determine the 'Inactive' record status type." );
+                }
+
+                var personIds = new List<int>();
+
+                using ( var rockContext = new RockContext() )
+                {
+                    // Get all the person ids with selected activity
+                    personIds = GetPeopleWhoContributed( settings.IsLastContributionEnabled, settings.LastContributionPeriod, rockContext );
+                    personIds.AddRange( GetPeopleWhoAttendedServiceGroup( settings.IsAttendanceInServiceGroupEnabled, settings.AttendanceInServiceGroupPeriod, rockContext ) );
+                    personIds.AddRange( GetPeopleWhoAttendedGroupType( settings.IsAttendanceInGroupTypeEnabled, settings.AttendanceInGroupType, settings.AttendanceInGroupTypeDays, rockContext ) );
+                    personIds.AddRange( GetPeopleWhoSubmittedPrayerRequest( settings.IsPrayerRequestEnabled, settings.PrayerRequestPeriod, rockContext ) );
+                    personIds.AddRange( GetPeopleWithPersonAttributUpdates( settings.IsPersonAttributesEnabled, settings.PersonAttributes, settings.PersonAttributesDays, rockContext ) );
+                    personIds.AddRange( GetPeopleWithInteractions( settings.IsInteractionsEnabled, settings.Interactions, rockContext ) );
+                    personIds.AddRange( GetPeopleInDataView( settings.IsIncludeDataViewEnabled, settings.IncludeDataView, rockContext ) );
+                    personIds = personIds.Distinct().ToList();
+
+                    // Expand the list to all family members.
+                    personIds = new GroupMemberService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( m =>
+                            m.Group != null &&
+                            m.Group.GroupTypeId == familyGroupType.Id &&
+                            personIds.Contains( m.PersonId ) )
+                        .SelectMany( m => m.Group.Members )
+                        .Select( p => p.PersonId )
+                        .ToList();
+                    personIds = personIds.Distinct().ToList();
+
+                    // Start the person qry by getting any of the people who are currently inactive
+                    var personQry = new PersonService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( p =>
+                            personIds.Contains( p.Id ) &&
+                            p.RecordStatusValueId == inactiveStatus.Id );
+
+                    // Check to see if any inactive reasons should be ignored, and if so filter the list to exclude those
+                    var invalidReasonDt = DefinedTypeCache.Read( SystemGuid.DefinedType.PERSON_RECORD_STATUS_REASON.AsGuid() );
+                    if ( invalidReasonDt != null )
+                    {
+                        var invalidReasonIds = invalidReasonDt.DefinedValues
+                            .Where( a =>
+                                a.AttributeValues.ContainsKey( "AllowAutomatedReactivation" ) &&
+                                a.AttributeValues["AllowAutomatedReactivation"].Value.AsBoolean() )
+                            .Select( a => a.Id )
+                            .ToList();
+                        if ( invalidReasonIds.Any() )
+                        {
+                            personQry = personQry.Where( p =>
+                                !p.RecordStatusReasonValueId.HasValue ||
+                                !invalidReasonIds.Contains( p.RecordStatusReasonValueId.Value ) );
+                        }
+                    }
+
+                    // If any people should be excluded based on being part of a dataview, exclude those people
+                    var excludePersonIds = GetPeopleInDataView( settings.IsExcludeDataViewEnabled, settings.ExcludeDataView, rockContext );
+                    if ( excludePersonIds.Any() )
+                    {
+                        personQry = personQry.Where( p =>
+                            !excludePersonIds.Contains( p.Id ) );
+                    }
+
+
+                    // Run the query
+                    personIds = personQry.Select( p => p.Id ).ToList();
+                }
+
+                // Counter for displaying results
+                int recordsProcessed = 0;
+                int recordsUpdated = 0;
+                int totalRecords = 0;
+
+                // Loop through each person
+                foreach ( var personId in personIds )
+                {
+                    // Update the status on every 100th record
+                    recordsProcessed++;
+                    if ( recordsProcessed % 100 == 0 )
+                    {
+                        context.UpdateLastStatusMessage( $"Processing person reactivate: Activated {recordsProcessed:N0} of {totalRecords:N0} person records." );
+                    }
+
+                    // Reactivate the person
+                    using ( var rockContext = new RockContext() )
+                    {
+                        var person = new PersonService( rockContext ).Get( personId );
+                        if ( person != null )
+                        {
+                            person.RecordStatusValueId = activeStatus.Id;
+                            person.RecordStatusReasonValueId = null;
+                            rockContext.SaveChanges();
+
+                            recordsUpdated++;
+                        }
                     }
                 }
 
+                // Format the result message
+                return $"{recordsProcessed:N0} people were processed; {recordsUpdated:N0} were activated.";
 
-                foreach ( var family in families )
+            }
+            catch ( Exception ex )
+            {
+                // Log exception and return the exception messages.
+                HttpContext context2 = HttpContext.Current;
+                ExceptionLogService.LogException( ex, context2 );
+
+                return ex.Messages().AsDelimited( "; " );
+            }
+        }
+
+        #endregion
+
+        #region Inactivate People
+
+        private string InactivatePeople( IJobExecutionContext context )
+        {
+            try
+            {
+                var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_INACTIVATE_PEOPLE ).FromJsonOrNull<Utility.Settings.DataAutomation.InactivatePeople>();
+                if ( settings == null || !settings.IsEnabled )
                 {
-                    int? attendanceCampusId = null;
-                    int? givingCampusId = null;
-                    int? currentCampusId = family.CampusId;
-                    var personIds = family.Members.Select( a => a.PersonId ).ToList();
+                    return "Not Enabled";
+                }
 
-                    if ( _campusSettings.IsMostFamilyGivingEnabled || _campusSettings.IsMostFamilyAttendanceEnabled )
+                // Get the family group type
+                var familyGroupType = GroupTypeCache.Read( SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid() );
+                if ( familyGroupType == null )
+                {
+                    throw new Exception( "Could not determine the 'Family' group type." );
+                }
+
+                // Get the active record status defined value
+                var activeStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid() );
+                if ( activeStatus == null )
+                {
+                    throw new Exception( "Could not determine the 'Active' record status type." );
+                }
+
+                // Get the inactive record status defined value
+                var inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid() );
+                if ( inactiveStatus == null )
+                {
+                    throw new Exception( "Could not determine the 'Inactive' record status type." );
+                }
+
+                var personIds = new List<int>();
+                using ( var rockContext = new RockContext() )
+                {
+                    // Get all the person ids with selected activity
+                    personIds = GetPeopleWhoContributed( settings.IsNoLastContributionEnabled, settings.NoLastContributionPeriod, rockContext );
+                    personIds.AddRange( GetPeopleWhoAttendedServiceGroup( settings.IsNoAttendanceInServiceGroupEnabled, settings.NoAttendanceInServiceGroupPeriod, rockContext ) );
+                    personIds.AddRange( GetPeopleWhoAttendedGroupType( settings.IsNoAttendanceInGroupTypeEnabled, settings.AttendanceInGroupType, settings.NoAttendanceInGroupTypeDays, rockContext ) );
+                    personIds.AddRange( GetPeopleWhoSubmittedPrayerRequest( settings.IsNoPrayerRequestEnabled, settings.NoPrayerRequestPeriod, rockContext ) );
+                    personIds.AddRange( GetPeopleWithPersonAttributUpdates( settings.IsNoPersonAttributesEnabled, settings.PersonAttributes, settings.NoPersonAttributesDays, rockContext ) );
+                    personIds.AddRange( GetPeopleWithInteractions( settings.IsNoInteractionsEnabled, settings.NoInteractions, rockContext ) );
+                    personIds = personIds.Distinct().ToList();
+
+                    // Expand the list to all family members.
+                    personIds = new GroupMemberService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( m =>
+                            m.Group != null &&
+                            m.Group.GroupTypeId == familyGroupType.Id &&
+                            personIds.Contains( m.PersonId ) )
+                        .SelectMany( m => m.Group.Members )
+                        .Select( p => p.PersonId )
+                        .ToList();
+                    personIds = personIds.Distinct().ToList();
+
+                    // Start the person qry by getting any of the people who are currently active and not in the list of people with activity
+                    var personQry = new PersonService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( p =>
+                            !personIds.Contains( p.Id ) &&
+                            p.RecordStatusValueId == activeStatus.Id );
+
+                    // If any people should be excluded based on being part of a dataview, exclude those people
+                    var excludePersonIds = GetPeopleInDataView( settings.IsNotInDataviewEnabled, settings.NotInDataview, rockContext );
+                    if ( excludePersonIds.Any() )
                     {
-                        using ( RockContext rockContext = new RockContext() )
+                        personQry = personQry.Where( p =>
+                            !excludePersonIds.Contains( p.Id ) );
+                    }
+
+                    // Run the query
+                    personIds = personQry.Select( p => p.Id ).ToList();
+                }
+
+                // Counter for displaying results
+                int recordsProcessed = 0;
+                int recordsUpdated = 0;
+                int totalRecords = 0;
+
+                // Loop through each person
+                foreach ( var personId in personIds )
+                {
+                    // Update the status on every 100th record
+                    recordsProcessed++;
+                    if ( recordsProcessed % 100 == 0 )
+                    {
+                        context.UpdateLastStatusMessage( $"Processing person inactivate: Inactivated {recordsProcessed:N0} of {totalRecords:N0} person records." );
+                    }
+
+                    // Inactivate the person
+                    using ( var rockContext = new RockContext() )
+                    {
+                        var person = new PersonService( rockContext ).Get( personId );
+                        if ( person != null )
                         {
-                            if ( _campusSettings.IsMostFamilyAttendanceEnabled )
+                            person.RecordStatusValueId = inactiveStatus.Id;
+                            //person.RecordStatusReasonValueId = ;
+                            person.InactiveReasonNote = "Inactivated by Data Automation Job";
+                            rockContext.SaveChanges();
+
+                            recordsUpdated++;
+                        }
+                    }
+                }
+
+                // Format the result message
+                return $"{recordsProcessed:N0} people were processed; {recordsUpdated:N0} were inactivated.";
+
+            }
+            catch ( Exception ex )
+            {
+                // Log exception and return the exception messages.
+                HttpContext context2 = HttpContext.Current;
+                ExceptionLogService.LogException( ex, context2 );
+
+                return ex.Messages().AsDelimited( "; " );
+            }
+        }
+
+        #endregion
+
+        #region Update Family Campus 
+
+        private string UpdateFamilyCampus( IJobExecutionContext context )
+        {
+            try
+            {
+                var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_CAMPUS_UPDATE ).FromJsonOrNull<Utility.Settings.DataAutomation.UpdateFamilyCampus>();
+                if ( settings == null || !settings.IsEnabled )
+                {
+                    return "Not Enabled";
+                }
+
+                // Get the family group type and roles
+                var familyGroupType = GroupTypeCache.Read( SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid() );
+                if ( familyGroupType == null )
+                {
+                    throw new Exception( "Could not determine the 'Family' group type." );
+                }
+
+                var familyIds = new List<int>();
+
+                using ( RockContext rockContext = new RockContext() )
+                {
+                    // Start a qry for all family ids
+                    var familyIdQry = new GroupService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( g => g.GroupTypeId == familyGroupType.Id );
+
+                    // Check to see if we should ignore any families that had a manual update
+                    if ( settings.IsIgnoreIfManualUpdateEnabled )
+                    {
+                        // Figure out how far back to look
+                        var startPeriod = RockDateTime.Now.AddDays( -settings.IgnoreIfManualUpdatePeriod );
+
+                        // Find any families that has a campus manually added/updated within the configured number of days
+                        var personEntityTypeId = EntityTypeCache.Read( typeof( Person ) ).Id;
+                        var familyIdsWithManualUpdate = new HistoryService( rockContext )
+                            .Queryable().AsNoTracking()
+                            .Where( m =>
+                                m.EntityTypeId == personEntityTypeId &&
+                                m.CreatedDateTime >= startPeriod && m.RelatedEntityId.HasValue &&
+                                m.Summary.Contains( "<span class='field name'>Campus</span>" ) )
+                            .Select( a => a.RelatedEntityId.Value )
+                            .ToList()
+                            .Distinct();
+
+                        familyIdQry = familyIdQry.Where( f => familyIdsWithManualUpdate.Contains( f.Id ) );
+                    }
+
+                    // Query for the family ids
+                    familyIds = familyIdQry.Select( f => f.Id ).ToList();
+                }
+
+                // Counters for displaying results
+                int recordsProcessed = 0;
+                int recordsUpdated = 0;
+                int totalRecords = familyIds.Count();
+
+                // Loop through each family
+                foreach ( var familyId in familyIds )
+                {
+                    // Update the status on every 100th record
+                    recordsProcessed++;
+                    if ( recordsProcessed % 100 == 0 )
+                    {
+                        context.UpdateLastStatusMessage( $"Processing campus updates: {recordsProcessed:N0} of {totalRecords:N0} families processed; campus has been updated for {recordsUpdated:N0} of them." );
+                    }
+
+                    // Using a new rockcontext for each one (to improve performance)
+                    using ( var rockContext = new RockContext() )
+                    {
+                        // Get the family
+                        var groupService = new GroupService( rockContext );
+                        var family = groupService.Get( familyId );
+
+                        var personIds = family.Members.Select( m => m.PersonId ).ToList();
+
+                        // Calculate the campus based on family attendance
+                        int? attendanceCampusId = null;
+                        int attendanceCampusCount = 0;
+                        if ( settings.IsMostFamilyAttendanceEnabled )
+                        {
+                            var startPeriod = RockDateTime.Now.AddDays( -settings.MostFamilyAttendancePeriod );
+                            var attendanceCampus = new AttendanceService( rockContext )
+                                .Queryable().AsNoTracking()
+                                .Where( a =>
+                                    a.StartDateTime >= startPeriod &&
+                                    a.CampusId.HasValue &&
+                                    a.DidAttend == true &&
+                                    personIds.Contains( a.PersonAlias.PersonId ) )
+                                .GroupBy( a => a.CampusId )
+                                .OrderByDescending( a => a.Count() )
+                                .Select( a => new
+                                {
+                                    CampusId = a.Key,
+                                    Count = a.Count()
+                                } )
+                                .FirstOrDefault();
+                            if ( attendanceCampus != null )
                             {
-                                var startPeriod = RockDateTime.Now.AddDays( -_campusSettings.MostFamilyAttendancePeriod );
-                                attendanceCampusId = new AttendanceService( rockContext )
-                                                      .Queryable().AsNoTracking().Where( a => a.StartDateTime >= startPeriod && a.CampusId.HasValue && a.DidAttend == true && personIds.Contains( a.PersonAlias.PersonId ) )
-                                                      .GroupBy( a => a.CampusId )
-                                                      .OrderByDescending( a => a.Count() )
-                                                      .Select( a => a.Key )
-                                                      .FirstOrDefault();
-                                if ( attendanceCampusId == currentCampusId )
-                                {
-                                    attendanceCampusId = null;
-                                }
-
-                                if ( _campusSettings.IsIgnoreCampusChangesEnabled && attendanceCampusId.HasValue && currentCampusId.HasValue )
-                                {
-                                    if ( _campusSettings.IgnoreCampusChanges.Where( a => a.FromCampus == currentCampusId.Value && a.ToCampus == attendanceCampusId.Value && a.BasedOn == CampusCriteria.UseAttendance ).Any() )
-                                    {
-                                        attendanceCampusId = null;
-                                    }
-
-                                }
+                                attendanceCampusId = attendanceCampus.CampusId;
+                                attendanceCampusCount = attendanceCampus.Count;
                             }
                         }
 
-                        if ( _campusSettings.IsMostFamilyGivingEnabled )
+                        // Calculate the campus based on giving
+                        int? givingCampusId = null;
+                        int givingCampusCount = 0;
+                        if ( settings.IsMostFamilyGivingEnabled )
                         {
-                            var startPeriod = RockDateTime.Now.AddDays( -_campusSettings.MostFamilyAttendancePeriod );
-                            using ( RockContext rockContext = new RockContext() )
-                            {
-                                givingCampusId = new FinancialTransactionDetailService( rockContext )
+                            var startPeriod = RockDateTime.Now.AddDays( -settings.MostFamilyAttendancePeriod );
+                            var givingCampus = new FinancialTransactionDetailService( rockContext )
                                 .Queryable().AsNoTracking()
-                                .Where( a => a.Transaction.TransactionDateTime >= startPeriod &&
+                                .Where( a =>
+                                    a.Transaction != null &&
                                     a.Transaction.TransactionDateTime.HasValue &&
+                                    a.Transaction.TransactionDateTime >= startPeriod &&
                                     a.Transaction.AuthorizedPersonAliasId.HasValue &&
-                                    personIds.Contains( a.Transaction.AuthorizedPersonAlias.PersonId )
-                                    && a.Account.CampusId.HasValue )
+                                    personIds.Contains( a.Transaction.AuthorizedPersonAlias.PersonId ) &&
+                                    a.Account.CampusId.HasValue )
                                 .GroupBy( a => a.Account.CampusId )
                                 .OrderByDescending( a => a.Select( b => b.Transaction ).Distinct().Count() )
-                                .Select( a => a.Key )
+                                .Select( a => new
+                                {
+                                    CampusId = a.Key,
+                                    Count = a.Count()
+                                } )
                                 .FirstOrDefault();
-                            }
-                            if ( givingCampusId == currentCampusId )
+                            if ( givingCampus != null )
                             {
-                                givingCampusId = null;
+                                givingCampusId = givingCampus.CampusId;
+                                givingCampusCount = givingCampus.Count;
+                            }
+                        }
+
+                        // If a campus could not be calculated for attendance or giving, move to next family.
+                        if ( !attendanceCampusId.HasValue && !givingCampusId.HasValue )
+                        {
+                            continue;
+                        }
+
+                        // Figure out what the campus should be
+                        int? currentCampusId = family.CampusId;
+                        int? newCampusId = null;
+                        if ( attendanceCampusId.HasValue )
+                        {
+                            if ( givingCampusId.HasValue && givingCampusId.Value != attendanceCampusId.Value )
+                            {
+                                // If campus from attendance and giving are different
+                                switch ( settings.MostAttendanceOrGiving )
+                                {
+                                    case Utility.Settings.DataAutomation.CampusCriteria.UseGiving:
+                                        newCampusId = givingCampusId;
+                                        break;
+
+                                    case Utility.Settings.DataAutomation.CampusCriteria.UseAttendance:
+                                        newCampusId = attendanceCampusId;
+                                        break;
+
+                                    case Utility.Settings.DataAutomation.CampusCriteria.UseHighestFrequency:
+
+                                        // If frequency is the same for both, and either of the values are same as current, then don't change the campus
+                                        if ( attendanceCampusCount == givingCampusCount &&
+                                            currentCampusId.HasValue &&
+                                            ( currentCampusId.Value == attendanceCampusId.Value || currentCampusId.Value == givingCampusId.Value ) )
+                                        {
+                                            newCampusId = null;
+                                        }
+                                        else
+                                        {
+                                            newCampusId = ( attendanceCampusCount > givingCampusCount ) ? attendanceCampusId : givingCampusId;
+                                        }
+
+                                        break;
+
+                                        // if none of those, just ignore.
+                                }
+                            }
+                            else
+                            {
+                                newCampusId = attendanceCampusId;
+                            }
+                        }
+                        else
+                        {
+                            newCampusId = givingCampusId;
+                        }
+
+                        // Campus did not change
+                        if ( !newCampusId.HasValue || newCampusId.Value == ( currentCampusId ?? 0 ) )
+                        {
+                            continue;
+                        }
+
+                        // Check to see if the campus change should be ignored
+                        if ( currentCampusId.HasValue )
+                        {
+                            bool ignore = false;
+                            foreach ( var exclusion in settings.IgnoreCampusChanges )
+                            {
+                                if ( exclusion.FromCampus == currentCampusId.Value && exclusion.ToCampus == newCampusId )
+                                {
+                                    ignore = true;
+                                    break;
+                                }
                             }
 
-                            if ( _campusSettings.IsIgnoreCampusChangesEnabled && givingCampusId.HasValue && currentCampusId.HasValue )
+                            if ( ignore )
                             {
-                                if ( _campusSettings.IgnoreCampusChanges.Where( a => a.FromCampus == currentCampusId.Value && a.ToCampus == givingCampusId.Value && a.BasedOn == CampusCriteria.UseGiving ).Any() )
+                                continue;
+                            }
+                        }
+
+                        // Update the campus
+                        family.CampusId = newCampusId.Value;
+                        rockContext.SaveChanges();
+
+                        // Since we just succesfully saved the change, increment the update counter
+                        recordsUpdated++;
+                    }
+                }
+
+                // Format the result message
+                return $"{recordsProcessed:N0} families were processed; campus was updated for {recordsUpdated:N0} of them.";
+
+            }
+            catch ( Exception ex )
+            {
+                // Log exception and return the exception messages.
+                HttpContext context2 = HttpContext.Current;
+                ExceptionLogService.LogException( ex, context2 );
+
+                return ex.Messages().AsDelimited( "; " );
+            }
+        }
+
+        #endregion
+
+        #region Move Adult Children 
+
+        private string MoveAdultChildren( IJobExecutionContext context )
+        {
+            try
+            {
+                var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_ADULT_CHILDREN ).FromJsonOrNull<Utility.Settings.DataAutomation.MoveAdultChildren>();
+                if ( settings == null || !settings.IsEnabled )
+                {
+                    return "Not Enabled";
+                }
+
+                // Get some system guids
+                var activeRecordStatusGuid = SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid();
+                var homeAddressGuid = SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid();
+                var homePhoneGuid = SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid();
+                var personChangesGuid = SystemGuid.Category.HISTORY_PERSON_DEMOGRAPHIC_CHANGES.AsGuid();
+                var familyChangesGuid = SystemGuid.Category.HISTORY_PERSON_FAMILY_CHANGES.AsGuid();
+
+                // Get the family group type and roles
+                var familyGroupType = GroupTypeCache.Read( SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid() );
+                if ( familyGroupType == null )
+                {
+                    throw new Exception( "Could not determine the 'Family' group type." );
+                }
+                var childRole = familyGroupType.Roles.FirstOrDefault( r => r.Guid == SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_CHILD.AsGuid() );
+                var adultRole = familyGroupType.Roles.FirstOrDefault( r => r.Guid == SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() );
+                if ( childRole == null || adultRole == null )
+                {
+                    throw new Exception( "Could not determine the 'Adult' and 'Child' roles." );
+                }
+
+                // Calculate the date to use for determining if someone is an adult based on their age (birthdate)
+                var adultBirthdate = RockDateTime.Today.AddYears( 0 - settings.AdultAge );
+
+                // Get a list of people marked as a child in any family, but who are now an "adult" based on their age
+                var adultChildIds = new List<int>();
+                using ( var rockContext = new RockContext() )
+                {
+                    adultChildIds = new GroupMemberService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( m =>
+                            m.GroupRoleId == childRole.Id &&
+                            m.Person.BirthDate.HasValue &&
+                            m.Person.BirthDate <= adultBirthdate &&
+                            m.Person.RecordStatusValue != null &&
+                            m.Person.RecordStatusValue.Guid == activeRecordStatusGuid )
+                        .OrderBy( m => m.PersonId )
+                        .Select( m => m.PersonId )
+                        .Distinct()
+                        .Take( settings.MaximumRecords )
+                        .ToList();
+                }
+
+                // Counter for displaying results
+                int recordsProcessed = 0;
+                int recordsUpdated = 0;
+                int totalRecords = adultChildIds.Count();
+
+                // Loop through each person
+                foreach ( int personId in adultChildIds )
+                {
+                    // Update the status on every 100th record
+                    recordsProcessed++;
+                    if ( recordsProcessed % 100 == 0 )
+                    {
+                        context.UpdateLastStatusMessage( $"Processing Adult Children: {recordsProcessed:N0} of {totalRecords:N0} children processed; {recordsUpdated:N0} have been moved to their own family." );
+                    }
+
+                    // Using a new rockcontext for each one (to improve performance)
+                    using ( var rockContext = new RockContext() )
+                    {
+                        // Get all the 'family' group member records for this person.
+                        var groupMemberService = new GroupMemberService( rockContext );
+                        var groupMembers = groupMemberService.Queryable()
+                            .Where( m =>
+                                m.PersonId == personId &&
+                                m.Group.GroupTypeId == familyGroupType.Id )
+                            .ToList();
+
+                        // If there are no group members (shouldn't happen), just ignore and keep going
+                        if ( !groupMembers.Any() )
+                        {
+                            continue;
+                        }
+
+                        // Get a reference to the person
+                        var person = groupMembers.First().Person;
+
+                        // Get the person's primary family, and if we can't get that (something else that shouldn't happen), just ignore this person.
+                        var primaryFamily = person.PrimaryFamily;
+                        if ( primaryFamily == null )
+                        {
+                            continue;
+                        }
+
+                        // Setup a variable for tracking person changes
+                        var personChanges = new List<string>();
+
+                        // Get all the parent and sibling ids (for adding relationships later)
+                        var parentIds = groupMembers
+                            .SelectMany( m => m.Group.Members )
+                            .Where( m =>
+                                m.PersonId != personId &&
+                                m.GroupRoleId == adultRole.Id )
+                            .Select( m => m.PersonId )
+                            .Distinct()
+                            .ToList();
+
+                        var siblingIds = groupMembers
+                            .SelectMany( m => m.Group.Members )
+                            .Where( m =>
+                                m.PersonId != personId &&
+                                m.GroupRoleId == childRole.Id )
+                            .Select( m => m.PersonId )
+                            .Distinct()
+                            .ToList();
+
+                        // If person is already an adult in any family, lets find the first one, and use that as the new family
+                        var newFamily = groupMembers
+                            .Where( m => m.GroupRoleId == adultRole.Id )
+                            .OrderBy( m => m.GroupOrder )
+                            .Select( m => m.Group )
+                            .FirstOrDefault();
+
+                        // If person was not already an adult in any family, let's look for a family where they are the only person, or create a new one
+                        if ( newFamily == null )
+                        {
+                            // Try to find a family where they are the only one in the family.
+                            newFamily = groupMembers
+                                .Select( m => m.Group )
+                                .Where( g => !g.Members.Any( m => m.PersonId != personId ) )
+                                .FirstOrDefault();
+
+                            // If we found one, make them an adult in that family
+                            if ( newFamily != null )
+                            {
+                                // The current person should be the only one in this family, but lets loop through each member anyway
+                                foreach ( var groupMember in groupMembers.Where( m => m.GroupId == newFamily.Id ) )
                                 {
-                                    givingCampusId = null;
+                                    groupMember.GroupRoleId = adultRole.Id;
                                 }
 
+                                // Save role change to history
+                                var memberChanges = new List<string>();
+                                History.EvaluateChange( memberChanges, "Role", string.Empty, adultRole.Name );
+                                HistoryService.SaveChanges( rockContext, typeof( Person ), familyChangesGuid, personId, memberChanges, newFamily.Name, typeof( Group ), newFamily.Id, false );
                             }
-                        }
-
-                        if ( attendanceCampusId.HasValue && givingCampusId.HasValue && attendanceCampusId.Value != givingCampusId.Value )
-                        {
-                            switch ( _campusSettings.MostAttendanceOrGiving )
+                            else
                             {
-                                case CampusCriteria.UseGiving:
-                                    {
-                                        attendanceCampusId = null;
-                                    }
-                                    break;
-                                case CampusCriteria.UseAttendance:
-                                    {
-                                        givingCampusId = null;
-                                    }
-                                    break;
-                                case CampusCriteria.Ignore:
-                                default:
-                                    {
-                                        attendanceCampusId = null;
-                                        givingCampusId = null;
-                                    }
-                                    break;
+                                // If they are not already an adult in a family, and they're not in any family by themeselves, we need to create a new family for them.
+                                // The SaveNewFamily adds history records for this
+
+                                // Create a new group member and family
+                                var groupMember = new GroupMember
+                                {
+                                    Person = person,
+                                    GroupRoleId = adultRole.Id,
+                                    GroupMemberStatus = GroupMemberStatus.Active
+                                };
+                                newFamily = GroupService.SaveNewFamily( rockContext, new List<GroupMember> { groupMember }, primaryFamily.CampusId, false );
                             }
                         }
 
-                        int? updateCampusId = attendanceCampusId ?? givingCampusId;
-                        if ( updateCampusId.HasValue )
+                        // If user configured the job to copy home address and this person's family does not have any home addresses, copy them from the primary family
+                        if ( settings.UseSameHomeAddress && !newFamily.GroupLocations.Any( l => l.GroupLocationTypeValue != null && l.GroupLocationTypeValue.Guid == homeAddressGuid ) )
                         {
-                            using ( RockContext rockContext = new RockContext() )
+                            var familyChanges = new List<string>();
+
+                            foreach ( var groupLocation in primaryFamily.GroupLocations.Where( l => l.GroupLocationTypeValue != null && l.GroupLocationTypeValue.Guid == homeAddressGuid ) )
                             {
-                                var familyGroup = new GroupService( rockContext ).Get( family.Id );
-                                familyGroup.CampusId = updateCampusId;
+                                newFamily.GroupLocations.Add( new GroupLocation
+                                {
+                                    LocationId = groupLocation.LocationId,
+                                    GroupLocationTypeValueId = groupLocation.GroupLocationTypeValueId,
+                                    IsMailingLocation = groupLocation.IsMailingLocation,
+                                    IsMappedLocation = groupLocation.IsMappedLocation
+                                } );
 
-                                var changes = new List<string>();
-                                string oldCampusName = currentCampusId.HasValue ? CampusCache.Read( currentCampusId.Value ).Name : string.Empty;
-                                changes.Add( $"Modifed Campus from <span class='field-value'>{oldCampusName}</span> to <span class'field-value'>{CampusCache.Read( updateCampusId.Value ).Name}</span> due to data automation job." );
-                                HistoryService.AddChanges( rockContext, typeof( Person ), Rock.SystemGuid.Category.HISTORY_PERSON_FAMILY_CHANGES.AsGuid(),
-                                   personIds.FirstOrDefault(), changes,family.Name,typeof(Group),family.Id );
+                                History.EvaluateChange( familyChanges, groupLocation.GroupLocationTypeValue.Value + " Location", string.Empty, groupLocation.Location.ToString() );
+                            }
 
-                                rockContext.SaveChanges();
+                            HistoryService.SaveChanges( rockContext, typeof( Person ), familyChangesGuid, personId, familyChanges, false );
+                        }
+
+                        // If user configured the job to copy home phone and this person does not have a home phone, copy the first home phone number from another adult in original family(s)
+                        if ( settings.UseSameHomePhone && !person.PhoneNumbers.Any( p => p.NumberTypeValue != null && p.NumberTypeValue.Guid == homePhoneGuid ) )
+                        {
+
+                            // First look for adults in primary family
+                            var homePhone = primaryFamily.Members
+                                .Where( m =>
+                                    m.PersonId != person.Id &&
+                                    m.GroupRoleId == adultRole.Id )
+                                .SelectMany( m => m.Person.PhoneNumbers )
+                                .FirstOrDefault( p => p.NumberTypeValue != null && p.NumberTypeValue.Guid == homePhoneGuid );
+
+                            // If one was not found in primary family, look in any of the person's other families
+                            if ( homePhone == null )
+                            {
+                                homePhone = groupMembers
+                                    .Where( m => m.GroupId != primaryFamily.Id )
+                                    .SelectMany( m => m.Group.Members )
+                                    .Where( m =>
+                                        m.PersonId != person.Id &&
+                                        m.GroupRoleId == adultRole.Id )
+                                    .SelectMany( m => m.Person.PhoneNumbers )
+                                    .FirstOrDefault( p => p.NumberTypeValue != null && p.NumberTypeValue.Guid == homePhoneGuid );
+                            }
+
+                            // If we found one, add it to the person
+                            if ( homePhone != null )
+                            {
+                                person.PhoneNumbers.Add( new PhoneNumber
+                                {
+                                    CountryCode = homePhone.CountryCode,
+                                    Number = homePhone.Number,
+                                    NumberFormatted = homePhone.NumberFormatted,
+                                    NumberReversed = homePhone.NumberReversed,
+                                    Extension = homePhone.Extension,
+                                    NumberTypeValueId = homePhone.NumberTypeValueId,
+                                    IsMessagingEnabled = homePhone.IsMessagingEnabled,
+                                    IsUnlisted = homePhone.IsUnlisted,
+                                    Description = homePhone.Description
+                                } );
                             }
                         }
 
-                    }
-                }
-            }
-
-        }
-
-        /// <summary>
-        /// Update families on reactivate settings.
-        /// </summary>
-        private void ProcessReactivateSetting()
-        {
-            var familyGroupTypeId = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY ).Id;
-
-            var values = DefinedTypeCache.Read( Rock.SystemGuid.DefinedType.PERSON_RECORD_STATUS_REASON.AsGuid() )
-                            .DefinedValues
-                            .Where( a => a.AttributeValues.ContainsKey( "AllowAutomatedReactivation" ) &&
-                            a.AttributeValues["AllowAutomatedReactivation"].Value.AsBoolean() )
-                            .Select( a => a.Id ).ToList();
-            var inactiveStatusId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid() ).Id;
-
-            List<Group> familiesWithInactivePerson = null;
-            List<Person> allMemberofFamilies = null;
-
-            using ( RockContext rockContext = new RockContext() )
-            {
-                familiesWithInactivePerson = new GroupMemberService( rockContext )
-                    .Queryable( "Group.Members" )
-                   .Where( m => m.Group.GroupTypeId == familyGroupTypeId &&
-                         m.Person.RecordStatusValueId.HasValue &&
-                         m.Person.RecordStatusValueId == inactiveStatusId &&
-                         m.Person.RecordStatusReasonValueId.HasValue &&
-                         values.Contains( m.Person.RecordStatusReasonValueId.Value ) )
-                    .OrderBy( m => m.GroupOrder ?? int.MaxValue )
-                    .DistinctBy( a => a.GroupId )
-                    .Select( m => m.Group )
-                    .ToList();
-
-                allMemberofFamilies = familiesWithInactivePerson
-                                        .SelectMany( a => a.Members.Select( b => b.Person ) )
-                                        .ToList();
-
-                if ( allMemberofFamilies.Count == 0 )
-                {
-                    return;
-                }
-            }
-
-
-            List<int> qualifiedPersonIds = new List<int>();
-
-            if ( _reactivateSettings.IsLastContributionEnabled )
-            {
-                List<int> fulfilledPersonIds = CheckLastContribution( allMemberofFamilies, _reactivateSettings.LastContributionPeriod );
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-                }
-            }
-
-            if ( _reactivateSettings.IsAttendanceInGroupTypeEnabled && allMemberofFamilies.Count > 0 && _reactivateSettings.AttendanceInGroupType.Count > 0 )
-            {
-                List<int> fulfilledPersonIds = CheckAttendanceInGroupType( allMemberofFamilies, _reactivateSettings.AttendanceInGroupTypeDays, _reactivateSettings.AttendanceInGroupType );
-
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-                }
-            }
-
-            if ( _reactivateSettings.IsAttendanceInServiceGroupEnabled && allMemberofFamilies.Count > 0 )
-            {
-                List<int> fulfilledPersonIds = CheckAttendanceInServiceGroup( allMemberofFamilies, _reactivateSettings.AttendanceInServiceGroupPeriod );
-
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-                }
-            }
-
-            if ( _reactivateSettings.IsPrayerRequestEnabled && allMemberofFamilies.Count > 0 )
-            {
-                List<int> fulfilledPersonIds = CheckPrayerRequest( allMemberofFamilies, _reactivateSettings.PrayerRequestPeriod );
-
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-                }
-            }
-
-            if ( _reactivateSettings.IsPersonAttributesEnabled && _reactivateSettings.PersonAttributes.Count > 0 && allMemberofFamilies.Count > 0 )
-            {
-                List<int> fulfilledPersonIds = CheckPersonAttribute( allMemberofFamilies, _reactivateSettings.PersonAttributesDays, _reactivateSettings.PersonAttributes );
-
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-
-                }
-            }
-
-            if ( _reactivateSettings.IsIncludeDataViewEnabled && !string.IsNullOrEmpty( _reactivateSettings.IncludeDataView ) && allMemberofFamilies.Count > 0 )
-            {
-                List<int> fulfilledPersonIds = CheckInDataView( allMemberofFamilies, _reactivateSettings.IncludeDataView.AsInteger() );
-                if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                {
-                    allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                    qualifiedPersonIds.AddRange( fulfilledPersonIds );
-                }
-            }
-
-            if ( _reactivateSettings.IsInteractionsEnabled && allMemberofFamilies.Count > 0 && _reactivateSettings.Interactions != null && _reactivateSettings.Interactions.Count > 0 )
-            {
-                foreach ( var interaction in _reactivateSettings.Interactions.Where( a => a.IsInteractionTypeEnabled ) )
-                {
-                    List<int> fulfilledPersonIds = CheckInteraction( allMemberofFamilies, interaction );
-
-                    if ( fulfilledPersonIds != null && fulfilledPersonIds.Count > 0 )
-                    {
-                        allMemberofFamilies.RemoveAll( a => fulfilledPersonIds.Contains( a.Id ) );
-                        qualifiedPersonIds.AddRange( fulfilledPersonIds );
-
-                    }
-                }
-            }
-
-            if ( _reactivateSettings.IsExcludeDataViewEnabled && !string.IsNullOrEmpty( _reactivateSettings.ExcludeDataView ) && qualifiedPersonIds.Count > 0 )
-            {
-                using ( RockContext rockContext = new RockContext() )
-                {
-                    var dataView = new DataViewService( rockContext ).Get( _reactivateSettings.ExcludeDataView.AsInteger() );
-                    if ( dataView != null )
-                    {
-                        List<string> errorMessages = new List<string>();
-                        var qry = dataView.GetQuery( null, null, out errorMessages );
-                        if ( qry != null )
+                        // At this point, the person was either already an adult in one or more families, 
+                        //   or we updated one of their records to be an adult, 
+                        //   or we created a new family with them as an adult. 
+                        // So now we should delete any of the remaining family member records where they are still a child.
+                        foreach ( var groupMember in groupMembers.Where( m => m.GroupRoleId == childRole.Id ) )
                         {
-                            var fulfilledPersonIds = qry.Where( e => qualifiedPersonIds.Contains( e.Id ) )
-                                  .Select( e => e.Id )
-                                  .ToList();
-                            qualifiedPersonIds.RemoveAll( a => fulfilledPersonIds.Contains( a ) );
+                            groupMemberService.Delete( groupMember );
                         }
-                    }
-                }
-            }
 
-
-            //For all the qualified Person, get their family and reactivate inactive members
-            if ( qualifiedPersonIds.Count > 0 )
-            {
-                var activeStatusId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid() ).Id;
-
-                var qualifiedInactiveMembers = familiesWithInactivePerson.Where( a => a.Members.Any( b => qualifiedPersonIds.Contains( b.PersonId ) ) )
-                                .SelectMany( a => a.Members.Select( b => b.Person ) )
-                                .Where( m => m.RecordStatusValueId.HasValue &&
-                                m.RecordStatusValueId == inactiveStatusId &&
-                                m.RecordStatusReasonValueId.HasValue &&
-                                values.Contains( m.RecordStatusReasonValueId.Value ) );
-
-                foreach ( var person in qualifiedInactiveMembers )
-                {
-                    using ( RockContext rockContext = new RockContext() )
-                    {
-                        var personService = new PersonService( rockContext );
-                        var inactivePerson = personService.Get( person.Id );
-                        inactivePerson.RecordStatusValueId = activeStatusId;
-                        inactivePerson.RecordStatusReasonValueId = null;
-
-                        var changes = new List<string>();
-                        changes.Add( $"Modifed Record Status from <span class='field-value'>{DefinedValueCache.GetName( person.RecordStatusValueId )}</span> to <span class'field-value'>{DefinedValueCache.GetName( activeStatusId )}</span> due to data automation job." );
-                        HistoryService.AddChanges( rockContext, typeof( Person ), Rock.SystemGuid.Category.HISTORY_PERSON.AsGuid(),
-                           person.Id, changes );
+                        // Save all the changes
                         rockContext.SaveChanges();
+
+                        // Since we just succesfully saved the change, increment the update counter
+                        recordsUpdated++;
+
+                        // If configured to do so, add any parent relationships (these methods take care of logging changes)
+                        if ( settings.ParentRelationshipId.HasValue )
+                        {
+                            foreach ( int parentId in parentIds )
+                            {
+                                groupMemberService.CreateKnownRelationship( personId, parentId, settings.ParentRelationshipId.Value );
+                            }
+                        }
+
+                        // If configured to do so, add any sibling relationships
+                        if ( settings.SiblingRelationshipId.HasValue )
+                        {
+                            foreach ( int siblingId in siblingIds )
+                            {
+                                groupMemberService.CreateKnownRelationship( personId, siblingId, settings.SiblingRelationshipId.Value );
+                            }
+                        }
+
+                        // Look for any workflows
+                        if ( settings.WorkflowTypeIds.Any() )
+                        {
+                            // Create parameters for the old/new family
+                            var workflowParameters = new Dictionary<string, string>
+                            {
+                                { "OldFamily", primaryFamily.Guid.ToString() },
+                                { "NewFamily", newFamily.Guid.ToString() }
+                            };
+
+                            // Launch all the workflows
+                            foreach ( var wfId in settings.WorkflowTypeIds )
+                            {
+                                person.LaunchWorkflow( wfId, person.FullName, workflowParameters );
+                            }
+                        }
                     }
                 }
+
+                // Format the result message
+                return $"{recordsProcessed:N0} children were processed; {recordsUpdated:N0} were moved to their own family.";
+            }
+            catch ( Exception ex )
+            {
+                // Log exception and return the exception messages.
+                HttpContext context2 = HttpContext.Current;
+                ExceptionLogService.LogException( ex, context2 );
+
+                return ex.Messages().AsDelimited( "; " );
             }
         }
 
-        /// <summary>
-        /// Update families on inactivate settings.
-        /// </summary>
-        private void ProcessInactivateSetting()
+        #endregion
+
+        private List<int> GetPeopleWhoContributed( bool enabled, int periodInDays, RockContext rockContext )
         {
-            var familyGroupTypeId = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY ).Id;
-
-            var activeStatusId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE.AsGuid() ).Id;
-
-            List<Group> familiesWithActivePerson = null;
-
-            using ( RockContext rockContext = new RockContext() )
+            if ( enabled )
             {
-                familiesWithActivePerson = new GroupMemberService( rockContext )
-                    .Queryable( "Group.Members.Person" )
-                   .Where( m => m.Group.GroupTypeId == familyGroupTypeId &&
-                         m.Person.RecordStatusValueId.HasValue &&
-                         m.Person.RecordStatusValueId == activeStatusId )
-                    .OrderBy( m => m.GroupOrder ?? int.MaxValue )
-                    .DistinctBy( a => a.GroupId )
-                    .Select( m => m.Group )
+                var contributionType = DefinedValueCache.Read( SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION.AsGuid() );
+                if ( contributionType != null )
+                {
+                    var startDate = RockDateTime.Now.AddDays( -periodInDays );
+                    return new FinancialTransactionService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( t =>
+                            t.TransactionTypeValueId == contributionType.Id &&
+                            t.TransactionDateTime.HasValue &&
+                            t.TransactionDateTime.Value >= startDate &&
+                            t.AuthorizedPersonAliasId.HasValue )
+                        .Select( a => a.AuthorizedPersonAlias.PersonId )
+                        .ToList();
+                }
+            }
+            return new List<int>();
+        }
+
+        private List<int> GetPeopleWhoAttendedServiceGroup( bool enabled, int periodInDays, RockContext rockContext )
+        {
+            if ( enabled )
+            {
+                var startDate = RockDateTime.Now.AddDays( -periodInDays );
+
+                return new AttendanceService( rockContext )
+                    .Queryable().AsNoTracking()
+                    .Where( a =>
+                        a.Group != null &&
+                        a.Group.GroupType != null &&
+                        a.Group.GroupType.AttendanceCountsAsWeekendService &&
+                        a.StartDateTime >= startDate &&
+                        a.DidAttend.HasValue &&
+                        a.DidAttend.Value == true &&
+                        a.PersonAlias != null )
+                    .Select( a => a.PersonAlias.PersonId )
                     .ToList();
             }
 
-            if ( _inactivateSettings.IsNoLastContributionEnabled && familiesWithActivePerson.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckLastContribution( allMemberofFamilies, _inactivateSettings.NoLastContributionPeriod );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                }
-            }
-
-            if ( _inactivateSettings.IsNoAttendanceInGroupTypeEnabled && familiesWithActivePerson.Count > 0 && _inactivateSettings.AttendanceInGroupType.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckAttendanceInGroupType( allMemberofFamilies, _inactivateSettings.NoAttendanceInGroupTypeDays, _inactivateSettings.AttendanceInGroupType );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                }
-            }
-
-            if ( _inactivateSettings.IsNoAttendanceInServiceGroupEnabled && familiesWithActivePerson.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckAttendanceInServiceGroup( allMemberofFamilies, _inactivateSettings.NoAttendanceInServiceGroupPeriod );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                }
-            }
-
-            if ( _inactivateSettings.IsNoPrayerRequestEnabled && familiesWithActivePerson.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckPrayerRequest( allMemberofFamilies, _inactivateSettings.NoPrayerRequestPeriod );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                }
-            }
-
-            if ( _inactivateSettings.IsNoPersonAttributesEnabled && _inactivateSettings.PersonAttributes.Count > 0 && familiesWithActivePerson.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckPersonAttribute( allMemberofFamilies, _inactivateSettings.NoPersonAttributesDays, _inactivateSettings.PersonAttributes );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-
-                }
-            }
-
-            if ( _inactivateSettings.IsNotInDataviewEnabled && !string.IsNullOrEmpty( _inactivateSettings.NotInDataview ) && familiesWithActivePerson.Count > 0 )
-            {
-                var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                List<int> nonfulfilledPersonIds = CheckInDataView( allMemberofFamilies, _inactivateSettings.NotInDataview.AsInteger() );
-
-                if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                {
-                    familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                }
-            }
-
-            if ( _inactivateSettings.IsNoInteractionsEnabled && familiesWithActivePerson.Count > 0 && _inactivateSettings.NoInteractions != null && _inactivateSettings.NoInteractions.Count > 0 )
-            {
-                foreach ( var interaction in _inactivateSettings.NoInteractions.Where( a => a.IsInteractionTypeEnabled ) )
-                {
-                    var allMemberofFamilies = GetMemberOfFamilies( familiesWithActivePerson );
-                    List<int> nonfulfilledPersonIds = CheckInteraction( allMemberofFamilies, interaction );
-
-                    if ( nonfulfilledPersonIds != null && nonfulfilledPersonIds.Count > 0 )
-                    {
-                        familiesWithActivePerson.RemoveAll( a => a.Members.Where( b => nonfulfilledPersonIds.Contains( b.PersonId ) ).Any() );
-                    }
-                }
-            }
-
-            //For all the families, get their family and inactivate active members
-            if ( familiesWithActivePerson.Count > 0 )
-            {
-                var inActiveStatusId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid() ).Id;
-
-                var activeMembers = familiesWithActivePerson
-                                .SelectMany( a => a.Members.Select( b => b.Person ) )
-                                .Where( m => m.RecordStatusValueId.HasValue &&
-                                m.RecordStatusValueId == activeStatusId );
-
-                foreach ( var person in activeMembers )
-                {
-                    using ( RockContext rockContext = new RockContext() )
-                    {
-                        var personService = new PersonService( rockContext );
-                        var inactivePerson = personService.Get( person.Id );
-                        inactivePerson.RecordStatusValueId = inActiveStatusId;
-                        inactivePerson.RecordStatusReasonValueId = null;
-
-                        var changes = new List<string>();
-                        changes.Add( $"Modifed Record Status from <span class='field-value'>{DefinedValueCache.GetName( person.RecordStatusValueId )}</span> to <span class'field-value'>{DefinedValueCache.GetName( inActiveStatusId )}</span> due to data automation job." );
-                        HistoryService.AddChanges( rockContext, typeof( Person ), Rock.SystemGuid.Category.HISTORY_PERSON.AsGuid(),
-                           person.Id, changes );
-                        rockContext.SaveChanges();
-                    }
-                }
-            }
+            return new List<int>();
         }
 
-        private List<int> CheckInDataView( List<Person> allMemberofFamilies, int dataviewId )
+        private List<int> GetPeopleWhoAttendedGroupType( bool enabled, List<int> groupTypeIds, int periodInDays, RockContext rockContext )
         {
-            var fulfilledPersonIds = new List<int>();
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            using ( RockContext rockContext = new RockContext() )
+            if ( enabled )
             {
-                var dataView = new DataViewService( rockContext ).Get( dataviewId );
+                var startDate = RockDateTime.Now.AddDays( -periodInDays );
+
+                return new AttendanceService( rockContext )
+                    .Queryable().AsNoTracking()
+                    .Where( a =>
+                        a.Group != null &&
+                        groupTypeIds.Contains( a.Group.GroupTypeId ) &&
+                        a.StartDateTime >= startDate &&
+                        a.DidAttend.HasValue &&
+                        a.DidAttend.Value == true &&
+                        a.PersonAlias != null )
+                    .Select( a => a.PersonAlias.PersonId )
+                    .ToList();
+            }
+
+            return new List<int>();
+        }
+
+
+        private List<int> GetPeopleWhoSubmittedPrayerRequest( bool enabled, int periodInDays, RockContext rockContext )
+        {
+            if ( enabled )
+            {
+                var startDate = RockDateTime.Now.AddDays( -periodInDays );
+
+                return new PrayerRequestService( rockContext )
+                    .Queryable().AsNoTracking()
+                    .Where( a =>
+                        a.EnteredDateTime >= startDate &&
+                        a.RequestedByPersonAlias != null )
+                    .Select( a => a.RequestedByPersonAlias.PersonId )
+                    .ToList();
+            }
+
+            return new List<int>();
+        }
+
+        private List<int> GetPeopleWithPersonAttributUpdates( bool enabled, List<int> attributeIds, int periodInDays, RockContext rockContext )
+        {
+            if ( enabled && attributeIds != null && attributeIds.Any() )
+            {
+                var startDate = RockDateTime.Now.AddDays( -periodInDays );
+
+                return new AttributeValueService( rockContext )
+                    .Queryable().AsNoTracking()
+                    .Where( a =>
+                          a.ModifiedDateTime.HasValue && 
+                          a.ModifiedDateTime.Value >= startDate &&
+                          attributeIds.Contains( a.AttributeId ) &&
+                          a.EntityId.HasValue )
+                      .Select( a => a.EntityId.Value )
+                      .ToList();
+            }
+
+            return new List<int>();
+        }
+
+        private List<int> GetPeopleWithInteractions( bool enabled, List<Utility.Settings.DataAutomation.InteractionItem> interactionItems, RockContext rockContext )
+        {
+            if ( enabled && interactionItems != null && interactionItems.Any() )
+            {
+                var personIdList = new List<int>();
+
+                foreach ( var interactionItem in interactionItems )
+                {
+                    var startDate = RockDateTime.Now.AddDays( -interactionItem.LastInteractionDays );
+
+                    personIdList.AddRange( new InteractionService( rockContext )
+                       .Queryable().AsNoTracking()
+                       .Where( a =>
+                            a.InteractionDateTime >= startDate &&
+                            a.InteractionComponent.Channel.Guid == interactionItem.Guid &&
+                            a.PersonAlias != null )
+                       .Select( a => a.PersonAlias.PersonId )
+                       .ToList() );
+                }
+
+                return personIdList;
+            }
+
+            return new List<int>();
+        }
+
+        private List<int> GetPeopleInDataView( bool enabled, int? dataviewId, RockContext rockContext )
+        {
+            if ( enabled && dataviewId.HasValue )
+            {
+                var dataView = new DataViewService( rockContext ).Get( dataviewId.Value );
                 if ( dataView != null )
                 {
                     List<string> errorMessages = new List<string>();
                     var qry = dataView.GetQuery( null, null, out errorMessages );
                     if ( qry != null )
                     {
-                        fulfilledPersonIds = qry.Where( e => personIds.Contains( e.Id ) )
-                                   .Select( e => e.Id )
-                                   .ToList();
-
+                        return qry.Select( e => e.Id ).ToList();
                     }
                 }
             }
 
-            return fulfilledPersonIds;
+            return new List<int>();
         }
 
-        private List<int> CheckInteraction( List<Person> allMemberofFamilies, InteractionItem interaction )
-        {
-            List<int> fulfilledPersonIds = new List<int>();
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            var interactionStartPeriod = RockDateTime.Now.AddDays( -interaction.LastInteractionDays );
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new InteractionService( rockContext )
-                   .Queryable()
-                   .AsNoTracking()
-                   .Where( a => a.InteractionDateTime >= interactionStartPeriod &&
-                        a.InteractionComponent.Channel.Guid == interaction.Guid &&
-                        personIds.Contains( a.PersonAlias.PersonId ) )
-                   .Select( a => a.PersonAlias.PersonId )
-                   .ToList();
-            }
 
-            return fulfilledPersonIds;
-        }
-
-        private List<int> CheckPrayerRequest( List<Person> allMemberofFamilies, int periodInDays )
-        {
-            var prayerRequestStartDate = RockDateTime.Now.AddDays( -periodInDays );
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            List<int> fulfilledPersonIds = new List<int>();
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new PrayerRequestService( rockContext )
-                    .Queryable()
-                    .Where( a =>
-                          a.EnteredDateTime >= prayerRequestStartDate &&
-                          personIds.Contains( a.RequestedByPersonAlias.PersonId ) )
-                      .Select( a => a.RequestedByPersonAlias.PersonId )
-                      .Distinct()
-                      .ToList();
-            }
-            return fulfilledPersonIds;
-        }
-
-        private List<int> CheckPersonAttribute( List<Person> allMemberofFamilies, int periodInDays, List<int> attributeIds )
-        {
-            var attributeModifiedStartDate = RockDateTime.Now.AddDays( -periodInDays );
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            List<int> fulfilledPersonIds = new List<int>();
-
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new AttributeValueService( rockContext )
-                    .Queryable()
-                    .Where( a =>
-                          a.ModifiedDateTime.HasValue && a.ModifiedDateTime >= attributeModifiedStartDate &&
-                          attributeIds.Contains( a.AttributeId ) &&
-                          a.EntityId.HasValue && personIds.Contains( a.EntityId.Value ))
-                      .Select( a => a.EntityId.Value )
-                      .Distinct()
-                      .ToList();
-            }
-            return fulfilledPersonIds;
-        }
-
-        private List<int> CheckAttendanceInServiceGroup( List<Person> allMemberofFamilies, int periodInDays )
-        {
-            var attendanceStartDate = RockDateTime.Now.AddDays( -periodInDays );
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            List<int> fulfilledPersonIds = new List<int>();
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new AttendanceService( rockContext )
-                    .Queryable()
-                    .Where( a =>
-                          a.Group.GroupType.AttendanceCountsAsWeekendService &&
-                          a.StartDateTime >= attendanceStartDate &&
-                          personIds.Contains( a.PersonAlias.PersonId ) )
-                      .Select( a => a.PersonAlias.PersonId )
-                      .Distinct()
-                      .ToList();
-            }
-            return fulfilledPersonIds;
-        }
-
-        private List<int> CheckAttendanceInGroupType( List<Person> allMemberofFamilies, int periodInDays, List<int> groupTypes )
-        {
-            var attendanceStartDate = RockDateTime.Now.AddDays( -periodInDays );
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            List<int> fulfilledPersonIds = new List<int>();
-
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new AttendanceService( rockContext )
-                    .Queryable()
-                    .Where( a =>
-                        groupTypes.Contains( a.Group.GroupTypeId ) &&
-                        a.StartDateTime >= attendanceStartDate &&
-                        personIds.Contains( a.PersonAlias.PersonId ) )
-                    .Select( a => a.PersonAlias.PersonId )
-                    .Distinct()
-                    .ToList();
-            }
-
-            return fulfilledPersonIds;
-        }
-
-        private List<int> CheckLastContribution( List<Person> allMemberofFamilies, int periodInDays )
-        {
-            int transactionTypeContributionId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION.AsGuid() ).Id;
-            var contributionStartDate = RockDateTime.Now.AddDays( -periodInDays );
-
-            var personIds = allMemberofFamilies.Select( a => a.Id ).ToList();
-            List<int> fulfilledPersonIds = new List<int>();
-            using ( RockContext rockContext = new RockContext() )
-            {
-                fulfilledPersonIds = new FinancialTransactionService( rockContext ).Queryable()
-                        .Where( a => a.TransactionTypeValueId == transactionTypeContributionId &&
-                             a.AuthorizedPersonAliasId.HasValue && personIds.Contains( a.AuthorizedPersonAlias.PersonId ) &&
-                             a.SundayDate >= contributionStartDate )
-                        .Select( a => a.AuthorizedPersonAlias.PersonId )
-                        .Distinct()
-                        .ToList();
-            }
-            return fulfilledPersonIds;
-        }
-
-        private static List<Person> GetMemberOfFamilies( List<Group> familiesWithActivePerson )
-        {
-            return familiesWithActivePerson
-                                .SelectMany( a => a.Members.Select( b => b.Person ) )
-                                .ToList();
-        }
     }
+
 }
