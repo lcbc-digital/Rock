@@ -105,12 +105,15 @@ namespace Rock.Slingshot
 
             int groupTypeIdFamily = CacheGroupType.GetFamilyGroupType().Id;
 
+            // Get all of the existing group ids that have been imported (excluding families)
             var groupIdLookup = new GroupService( rockContext ).Queryable().Where( a => a.GroupTypeId != groupTypeIdFamily && a.ForeignId.HasValue && a.ForeignKey == foreignSystemKey )
                 .Select( a => new { a.Id, a.ForeignId } ).ToDictionary( k => k.ForeignId.Value, v => v.Id );
 
+            // Get all the existing location ids that have been imported
             var locationIdLookup = new LocationService( rockContext ).Queryable().Where( a => a.ForeignId.HasValue && a.ForeignKey == foreignSystemKey )
                 .Select( a => new { a.Id, a.ForeignId } ).ToDictionary( k => k.ForeignId.Value, v => v.Id );
 
+            // Get all the existing schedule ids that have been imported
             var scheduleIdLookup = new ScheduleService( rockContext ).Queryable().Where( a => a.ForeignId.HasValue && a.ForeignKey == foreignSystemKey )
                 .Select( a => new { a.Id, a.ForeignId } ).ToDictionary( k => k.ForeignId.Value, v => v.Id );
 
@@ -118,9 +121,11 @@ namespace Rock.Slingshot
             var personAliasIdLookup = new PersonAliasService( rockContext ).Queryable().Where( a => a.Person.ForeignId.HasValue && a.Person.ForeignKey == foreignSystemKey && a.PersonId == a.AliasPersonId )
                 .Select( a => new { PersonAliasId = a.Id, PersonForeignId = a.Person.ForeignId } ).ToDictionary( k => k.PersonForeignId.Value, v => v.PersonAliasId );
 
+            // Get list of existing attendance records that have already been imported
             var qryAttendancesWithForeignIds = new AttendanceService( rockContext ).Queryable().Where( a => a.ForeignId.HasValue && a.ForeignKey == foreignSystemKey );
             var attendancesAlreadyExistForeignIdHash = new HashSet<int>( qryAttendancesWithForeignIds.Select( a => a.ForeignId.Value ).ToList() );
 
+            // Filter import record to those that have not yet been imported
             var newAttendanceImports = attendanceImports.Where( a => !a.AttendanceForeignId.HasValue || !attendancesAlreadyExistForeignIdHash.Contains( a.AttendanceForeignId.Value ) ).ToList();
 
             DateTime importDateTime = RockDateTime.Now;
@@ -128,41 +133,38 @@ namespace Rock.Slingshot
             var attendancesToInsert = new List<Attendance>( newAttendanceImports.Count );
             foreach ( var attendanceImport in newAttendanceImports )
             {
-                var attendance = new Attendance();
-                attendance.ForeignId = attendanceImport.AttendanceForeignId;
-                attendance.ForeignKey = foreignSystemKey;
 
-                attendance.CampusId = attendanceImport.CampusId;
-                attendance.StartDateTime = attendanceImport.StartDateTime;
-                attendance.EndDateTime = attendanceImport.EndDateTime;
+                //var attendance = new Attendance();
+                //attendance.ForeignId = attendanceImport.AttendanceForeignId;
+                //attendance.ForeignKey = foreignSystemKey;
 
-                if ( attendanceImport.GroupForeignId.HasValue )
-                {
-                    attendance.GroupId = groupIdLookup.GetValueOrNull( attendanceImport.GroupForeignId.Value );
-                }
+                //attendance.CampusId = attendanceImport.CampusId;
+                //attendance.StartDateTime = attendanceImport.StartDateTime;
+                //attendance.EndDateTime = attendanceImport.EndDateTime;
 
-                if ( attendanceImport.LocationForeignId.HasValue )
-                {
-                    attendance.LocationId = locationIdLookup.GetValueOrNull( attendanceImport.LocationForeignId.Value );
-                }
+                //if ( attendanceImport.GroupForeignId.HasValue )
+                //{
+                //    attendance.GroupId = groupIdLookup.GetValueOrNull( attendanceImport.GroupForeignId.Value );
+                //}
 
-                if ( attendanceImport.ScheduleForeignId.HasValue )
-                {
-                    attendance.ScheduleId = scheduleIdLookup.GetValueOrNull( attendanceImport.ScheduleForeignId.Value );
-                }
+                //if ( attendanceImport.LocationForeignId.HasValue )
+                //{
+                //    attendance.LocationId = locationIdLookup.GetValueOrNull( attendanceImport.LocationForeignId.Value );
+                //}
 
-                attendance.PersonAliasId = personAliasIdLookup.GetValueOrNull( attendanceImport.PersonForeignId );
-                attendance.Note = attendanceImport.Note;
-                attendance.DidAttend = true;
-                attendance.CreatedDateTime = importDateTime;
-                attendance.ModifiedDateTime = importDateTime;
+                //if ( attendanceImport.ScheduleForeignId.HasValue )
+                //{
+                //    attendance.ScheduleId = scheduleIdLookup.GetValueOrNull( attendanceImport.ScheduleForeignId.Value );
+                //}
 
-                attendancesToInsert.Add( attendance );
+                //attendance.PersonAliasId = personAliasIdLookup.GetValueOrNull( attendanceImport.PersonForeignId );
+                //attendance.Note = attendanceImport.Note;
+                //attendance.DidAttend = true;
+                //attendance.CreatedDateTime = importDateTime;
+                //attendance.ModifiedDateTime = importDateTime;
+
+                //attendancesToInsert.Add( attendance );
             }
-
-            var groupIds = attendancesToInsert.Select( a => a.GroupId ).Distinct().ToList();
-            var allGroupIds = new GroupService( rockContext ).Queryable().Select( a => a.Id ).ToList();
-            var missing = groupIds.Where( a => !a.HasValue || !allGroupIds.Contains( a.Value ) );
 
             rockContext.BulkInsert( attendancesToInsert );
 
