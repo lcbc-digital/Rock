@@ -932,11 +932,27 @@ namespace Rock.Lava
                 format = " " + format;
             }
 
-            DateTime date;
+            var inputDateTime = input.ToString().AsDateTime();
 
-            return DateTime.TryParse( input.ToString(), out date )
-                ? Liquid.UseRubyDateFormat ? date.ToStrFTime( format ).Trim() : date.ToString( format ).Trim()
-                : input.ToString().Trim();
+            // Check for invalid date
+            if (! inputDateTime.HasValue )
+            {
+                return input.ToString().Trim();
+            }
+
+            // Consider special 'Standard Date' format
+            if ( format == "sd" )
+            {
+                return inputDateTime.Value.ToShortDateString();
+            }
+
+            // Consider special 'Standard Time' format
+            if ( format == "st" )
+            {
+                return inputDateTime.Value.ToShortTimeString();
+            }
+
+            return Liquid.UseRubyDateFormat ? inputDateTime.Value.ToStrFTime( format ).Trim() : inputDateTime.Value.ToString( format ).Trim();
         }
 
         /// <summary>
@@ -3751,8 +3767,7 @@ namespace Rock.Lava
             {
                 return null;
             }
-
-            return input.ToString().AsIntegerOrNull();
+            return (int?)input.ToString().AsDecimalOrNull();
         }
 
         /// <summary>
@@ -3928,6 +3943,25 @@ namespace Rock.Lava
             }
 
             return inputList;
+        }
+
+        /// <summary>
+        /// Determines whether [contains] [the specified input].
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="containValue">The contain value.</param>
+        /// <returns>
+        ///   <c>true</c> if [contains] [the specified input]; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool Contains( object input, object containValue)
+        {
+            var inputList = ( input as IList );
+            if ( inputList != null )
+            {
+                return inputList.Contains( containValue );
+            }
+
+            return false;
         }
 
         /// <summary>
