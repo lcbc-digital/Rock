@@ -34,5 +34,13 @@ namespace Rock.Utility.Settings.DataAutomation
         ///   <c>true</c> if this instance is enabled; otherwise, <c>false</c>.
         /// </value>
         public bool IsEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the connection status value identifier dataview identifier mapping.
+        /// </summary>
+        /// <value>
+        /// The connection status value identifier dataview identifier mapping.
+        /// </value>
+        public Dictionary<int, int?> ConnectionStatusValueIdDataviewIdMapping { get; set; } = new Dictionary<int, int?>();
     }
 }

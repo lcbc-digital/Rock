@@ -442,7 +442,7 @@ namespace RockWeb.Blocks.Administration
                 .Select( a => new PersonConnectionStatusDataView
                 {
                     PersonConnectionStatusValue = a,
-                    DataViewId = null
+                    DataViewId = _updatePersonConnectionStatus.ConnectionStatusValueIdDataviewIdMapping.GetValueOrNull(a.Id)
                 } ).ToList();
 
             rptPersonConnectionStatusDataView.DataSource = personConnectionStatusDataViewSettingsList;
@@ -592,6 +592,13 @@ namespace RockWeb.Blocks.Administration
 
             // Update Connection Status
             _updatePersonConnectionStatus.IsEnabled = cbUpdatePersonConnectionStatus.Checked;
+            _updatePersonConnectionStatus.ConnectionStatusValueIdDataviewIdMapping.Clear();
+            foreach (var item in rptPersonConnectionStatusDataView.Items.OfType<RepeaterItem>())
+            {
+                HiddenField hfPersonConnectionStatusValueId = item.FindControl( "hfPersonConnectionStatusValueId" ) as HiddenField;
+                DataViewPicker dvpPersonConnectionStatusDataView = item.FindControl( "dvpPersonConnectionStatusDataView" ) as DataViewPicker;
+                _updatePersonConnectionStatus.ConnectionStatusValueIdDataviewIdMapping.AddOrReplace( hfPersonConnectionStatusValueId.Value.AsInteger(), dvpPersonConnectionStatusDataView.SelectedValueAsId() );
+            }
             // TODO
 
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE, _reactivateSettings.ToJson() );
