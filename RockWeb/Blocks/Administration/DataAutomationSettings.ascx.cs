@@ -60,6 +60,8 @@ namespace RockWeb.Blocks.Administration
 
         private UpdatePersonConnectionStatus _updatePersonConnectionStatus = new UpdatePersonConnectionStatus();
 
+        private UpdateFamilyStatus _updateFamilyStatus = new UpdateFamilyStatus();
+
         private List<InteractionItem> _interactionChannelTypes = new List<InteractionItem>();
 
         private List<CacheCampus> _campuses = new List<CacheCampus>();
@@ -263,6 +265,7 @@ namespace RockWeb.Blocks.Administration
             SetPanel( pwUpdateCampus, pnlCampusUpdate, "Update Family Campus", cbCampusUpdate.Checked );
             SetPanel( pwAdultChildren, pnlAdultChildren, "Move Adult Children", cbAdultChildren.Checked );
             SetPanel( pwUpdatePersonConnectionStatus, pnlUpdatePersonConnectionStatus, "Update Connection Status", cbUpdatePersonConnectionStatus.Checked );
+            SetPanel( pwUpdateFamilyStatus, pnlUpdateFamilyStatus, "Update Family Status", cbUpdateFamilyStatus.Checked );
         }
 
         /// <summary>
@@ -307,6 +310,7 @@ namespace RockWeb.Blocks.Administration
             _campusSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_CAMPUS_UPDATE ).FromJsonOrNull<UpdateFamilyCampus>() ?? new UpdateFamilyCampus();
             _adultChildrenSettings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_ADULT_CHILDREN ).FromJsonOrNull<MoveAdultChildren>() ?? new MoveAdultChildren();
             _updatePersonConnectionStatus = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_PERSON_CONNECTION_STATUS ).FromJsonOrNull<UpdatePersonConnectionStatus>() ?? new UpdatePersonConnectionStatus();
+            _updateFamilyStatus = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_STATUS ).FromJsonOrNull<UpdateFamilyStatus>() ?? new UpdateFamilyStatus();
 
             // Set Data Automation Controls
 
@@ -448,7 +452,18 @@ namespace RockWeb.Blocks.Administration
             rptPersonConnectionStatusDataView.DataSource = personConnectionStatusDataViewSettingsList;
             rptPersonConnectionStatusDataView.DataBind();
 
-            // TODO
+            // Update Family Status
+            cbUpdateFamilyStatus.Checked = _updateFamilyStatus.IsEnabled;
+            pnlUpdateFamilyStatus.Enabled = _updateFamilyStatus.IsEnabled;
+            var groupStatusDataViewSettingsList = CacheDefinedType.Get( Rock.SystemGuid.DefinedType.FAMILY_GROUP_STATUS.AsGuid() ).DefinedValues
+                .Select( a => new FamilyStatusDataView
+                {
+                    GroupStatusValue = a,
+                    DataViewId = _updateFamilyStatus.GroupStatusValueIdDataviewIdMapping.GetValueOrNull( a.Id )
+                } ).ToList();
+
+            rptFamilyStatusDataView.DataSource = groupStatusDataViewSettingsList;
+            rptFamilyStatusDataView.DataBind();
         }
 
         /// <summary>
@@ -599,13 +614,23 @@ namespace RockWeb.Blocks.Administration
                 DataViewPicker dvpPersonConnectionStatusDataView = item.FindControl( "dvpPersonConnectionStatusDataView" ) as DataViewPicker;
                 _updatePersonConnectionStatus.ConnectionStatusValueIdDataviewIdMapping.AddOrReplace( hfPersonConnectionStatusValueId.Value.AsInteger(), dvpPersonConnectionStatusDataView.SelectedValueAsId() );
             }
-            // TODO
+
+            // Update Family Status
+            _updateFamilyStatus.IsEnabled = cbUpdateFamilyStatus.Checked;
+            _updateFamilyStatus.GroupStatusValueIdDataviewIdMapping.Clear();
+            foreach ( var item in rptFamilyStatusDataView.Items.OfType<RepeaterItem>() )
+            {
+                HiddenField hfGroupStatusValueId = item.FindControl( "hfGroupStatusValueId" ) as HiddenField;
+                DataViewPicker dvpGroupStatusDataView = item.FindControl( "dvpGroupStatusDataView" ) as DataViewPicker;
+                _updateFamilyStatus.GroupStatusValueIdDataviewIdMapping.AddOrReplace( hfGroupStatusValueId.Value.AsInteger(), dvpGroupStatusDataView.SelectedValueAsId() );
+            }
 
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_REACTIVATE_PEOPLE, _reactivateSettings.ToJson() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_INACTIVATE_PEOPLE, _inactivateSettings.ToJson() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_CAMPUS_UPDATE, _campusSettings.ToJson() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_ADULT_CHILDREN, _adultChildrenSettings.ToJson() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_UPDATE_PERSON_CONNECTION_STATUS, _updatePersonConnectionStatus.ToJson() );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_STATUS, _updateFamilyStatus.ToJson() );
         }
 
         /// <summary>
@@ -705,6 +730,51 @@ namespace RockWeb.Blocks.Administration
             /// The connection status value.
             /// </value>
             public CacheDefinedValue PersonConnectionStatusValue { get; set; }
+
+            /// <summary>
+            /// Gets or sets the data view identifier.
+            /// </summary>
+            /// <value>
+            /// The data view identifier.
+            /// </value>
+            public int? DataViewId { get; set; }
+        }
+
+        #endregion
+
+        #region Update Family Status
+
+        /// <summary>
+        /// Handles the ItemDataBound event of the rptFamilyStatusDataView control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="RepeaterItemEventArgs"/> instance containing the event data.</param>
+        protected void rptFamilyStatusDataView_ItemDataBound( object sender, RepeaterItemEventArgs e )
+        {
+            FamilyStatusDataView groupStatusDataView = e.Item.DataItem as FamilyStatusDataView;
+            HiddenField hfGroupStatusValueId = e.Item.FindControl( "hfGroupStatusValueId" ) as HiddenField;
+            DataViewPicker dvpGroupStatusDataView = e.Item.FindControl( "dvpGroupStatusDataView" ) as DataViewPicker;
+            if ( groupStatusDataView != null )
+            {
+                hfGroupStatusValueId.Value = groupStatusDataView.GroupStatusValue.Id.ToString();
+                dvpGroupStatusDataView.EntityTypeId = CacheEntityType.GetId<Rock.Model.Group>();
+                dvpGroupStatusDataView.Label = groupStatusDataView.GroupStatusValue.ToString();
+                dvpGroupStatusDataView.SetValue( groupStatusDataView.DataViewId );
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private class FamilyStatusDataView
+        {
+            /// <summary>
+            /// Gets or sets the group status value.
+            /// </summary>
+            /// <value>
+            /// The group status value.
+            /// </value>
+            public CacheDefinedValue GroupStatusValue { get; set; }
 
             /// <summary>
             /// Gets or sets the data view identifier.

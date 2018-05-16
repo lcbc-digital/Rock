@@ -380,6 +380,25 @@
                         </asp:Panel>
                     </Rock:PanelWidget>
 
+                    <Rock:PanelWidget ID="pwUpdateFamilyStatus" runat="server" Title="Update Family Status">
+                        <Rock:RockCheckBox ID="cbUpdateFamilyStatus" runat="server" 
+                            Label="Enable" Text="Enable the automatic updating of family status."
+                            AutoPostBack="true" OnCheckedChanged="cbDataAutomationEnabled_CheckedChanged" />
+
+                        <hr />
+
+                        <asp:Panel ID="pnlUpdateFamilyStatus" runat="server" Enabled="false" CssClass="data-integrity-options">
+                            <Rock:RockControlWrapper ID="rcwUpdateFamilyStatus" runat="server" Label="Update Family Status based on Data View">
+                                <asp:Repeater ID="rptFamilyStatusDataView" runat="server" OnItemDataBound="rptFamilyStatusDataView_ItemDataBound">
+                                    <ItemTemplate>
+                                        <asp:HiddenField ID="hfGroupStatusValueId" runat="server" />
+                                        <Rock:DataViewPicker ID="dvpGroupStatusDataView" runat="server" />
+                                    </ItemTemplate>
+                                </asp:Repeater>
+                              </Rock:RockControlWrapper>
+                        </asp:Panel>
+                    </Rock:PanelWidget>
+
                 </fieldset>
                 
                 <div class="actions margin-t-lg">
