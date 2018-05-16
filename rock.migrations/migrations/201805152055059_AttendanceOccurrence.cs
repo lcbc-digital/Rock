@@ -32,35 +32,35 @@ namespace Rock.Migrations
             CreateTable(
                 "dbo.AttendanceOccurrence",
                 c => new
-                {
-                    Id = c.Int( nullable: false, identity: true ),
-                    GroupId = c.Int(),
-                    LocationId = c.Int(),
-                    ScheduleId = c.Int(),
-                    OccurrenceDate = c.DateTime( nullable: false, storeType: "date" ),
-                    DidNotOccur = c.Boolean(),
-                    CreatedDateTime = c.DateTime(),
-                    ModifiedDateTime = c.DateTime(),
-                    CreatedByPersonAliasId = c.Int(),
-                    ModifiedByPersonAliasId = c.Int(),
-                    Guid = c.Guid( nullable: false ),
-                    ForeignId = c.Int(),
-                    ForeignGuid = c.Guid(),
-                    ForeignKey = c.String( maxLength: 100 ),
-                } )
-                .PrimaryKey( t => t.Id )
-                .ForeignKey( "dbo.PersonAlias", t => t.CreatedByPersonAliasId )
-                .ForeignKey( "dbo.Group", t => t.GroupId, cascadeDelete: true )
-                .ForeignKey( "dbo.Location", t => t.LocationId, cascadeDelete: true )
-                .ForeignKey( "dbo.PersonAlias", t => t.ModifiedByPersonAliasId )
-                .ForeignKey( "dbo.Schedule", t => t.ScheduleId, cascadeDelete: true )
-                .Index( t => t.GroupId )
-                .Index( t => t.LocationId )
-                .Index( t => t.ScheduleId )
-                .Index( t => t.OccurrenceDate )
-                .Index( t => t.CreatedByPersonAliasId )
-                .Index( t => t.ModifiedByPersonAliasId )
-                .Index( t => t.Guid, unique: true );
+                    {
+                        Id = c.Int(nullable: false, identity: true),
+                        GroupId = c.Int(),
+                        LocationId = c.Int(),
+                        ScheduleId = c.Int(),
+                        OccurrenceDate = c.DateTime(nullable: false, storeType: "date"),
+                        DidNotOccur = c.Boolean(),
+                        CreatedDateTime = c.DateTime(),
+                        ModifiedDateTime = c.DateTime(),
+                        CreatedByPersonAliasId = c.Int(),
+                        ModifiedByPersonAliasId = c.Int(),
+                        Guid = c.Guid(nullable: false),
+                        ForeignId = c.Int(),
+                        ForeignGuid = c.Guid(),
+                        ForeignKey = c.String(maxLength: 100),
+                    })
+                .PrimaryKey(t => t.Id)
+                .ForeignKey("dbo.PersonAlias", t => t.CreatedByPersonAliasId)
+                .ForeignKey("dbo.Group", t => t.GroupId, cascadeDelete: true)
+                .ForeignKey("dbo.Location", t => t.LocationId, cascadeDelete: true)
+                .ForeignKey("dbo.PersonAlias", t => t.ModifiedByPersonAliasId)
+                .ForeignKey("dbo.Schedule", t => t.ScheduleId, cascadeDelete: true)
+                .Index(t => t.GroupId)
+                .Index(t => t.LocationId)
+                .Index(t => t.ScheduleId)
+                .Index(t => t.OccurrenceDate)
+                .Index(t => t.CreatedByPersonAliasId)
+                .Index(t => t.ModifiedByPersonAliasId)
+                .Index(t => t.Guid, unique: true);
 
             Sql( @"
     ALTER TABLE dbo.AttendanceOccurrence ADD SundayDate AS (dbo.ufnUtility_GetSundayDate(OccurrenceDate)) persisted
@@ -85,8 +85,8 @@ namespace Rock.Migrations
     SET IDENTITY_INSERT dbo.AttendanceOccurrence OFF
 " );
 
-            AddColumn( "dbo.Attendance", "OccurrenceId", c => c.Int( nullable: false, defaultValue: 1 ));
-            AddForeignKey("dbo.Attendance", "OccurrenceId", "dbo.AttendanceOccurrence", "Id", cascadeDelete: true);
+            AddColumn("dbo.Attendance", "OccurrenceId", c => c.Int(nullable: false, defaultValue: 1 ) );
+            AddForeignKey( "dbo.Attendance", "OccurrenceId", "dbo.AttendanceOccurrence", "Id", cascadeDelete: false );
 
             // Job for Migrating Interaction Data
             Sql( $@"
@@ -108,6 +108,19 @@ namespace Rock.Migrations
          ,'0 0 4 1/1 * ? *'
          ,3
          ,'{ SystemGuid.ServiceJob.MIGRATE_ATTENDANCE_OCCURRENCE }')" );
+
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spAnalytics_ETL_Attendance );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_AttendanceAnalyticsQuery_AttendeeDates );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_AttendanceAnalyticsQuery_AttendeeFirstDates );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_AttendanceAnalyticsQuery_AttendeeLastAttendance );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_AttendanceAnalyticsQuery_Attendees );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_AttendanceAnalyticsQuery_NonAttendees );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_BadgeAttendance );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCheckin_WeeksAttendedInDuration );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsAttendance );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsEraDataset );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsUpdateVisitDates );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_vCheckin_GroupTypeAttendance );
 
         }
 

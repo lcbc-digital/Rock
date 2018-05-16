@@ -189,7 +189,14 @@ namespace RockWeb.Blocks.Groups
                     var personAliasService = new PersonAliasService( rockContext );
                     var locationService = new LocationService( rockContext );
 
-                    if ( _occurrence.Id == 0 )
+                    AttendanceOccurrence occurrence = null;
+
+                    if ( _occurrence.Id != 0 )
+                    {
+                        occurrence = occurrenceService.Get( _occurrence.Id );
+                    }
+
+                    if ( occurrence == null )
                     {
                         var existingOccurrence = occurrenceService.Get( _occurrence.OccurrenceDate, _group.Id, _occurrence.LocationId, _occurrence.ScheduleId );
                         if ( existingOccurrence != null )
@@ -203,17 +210,19 @@ namespace RockWeb.Blocks.Groups
                         }
                         else
                         {
-                            occurrenceService.Add( _occurrence );
-                            rockContext.SaveChanges();
+                            occurrence = new AttendanceOccurrence();
+                            occurrence.GroupId = _occurrence.GroupId;
+                            occurrence.LocationId = _occurrence.LocationId;
+                            occurrence.ScheduleId = _occurrence.ScheduleId;
+                            occurrence.OccurrenceDate = _occurrence.OccurrenceDate;
+
+                            occurrenceService.Add( occurrence );
                         }
                     }
+                    
+                    occurrence.DidNotOccur = cbDidNotMeet.Checked;
 
-                    _occurrence.DidNotOccur = cbDidNotMeet.Checked;
-
-                    var existingAttendees = attendanceService
-                        .Queryable( "PersonAlias" )
-                        .Where( a => a.OccurrenceId == _occurrence.Id )
-                        .ToList();
+                    var existingAttendees = occurrence.Attendees.ToList();
 
                     // If did not meet was selected and this was a manually entered occurrence (not based on a schedule/location)
                     // then just delete all the attendance records instead of tracking a 'did not meet' value
@@ -270,7 +279,7 @@ namespace RockWeb.Blocks.Groups
                                             return;
                                         }
 
-                                        attendanceService.Add( attendance );
+                                        occurrence.Attendees.Add( attendance );
                                     }
                                 }
 
@@ -284,9 +293,9 @@ namespace RockWeb.Blocks.Groups
 
                     rockContext.SaveChanges();
 
-                    if ( _occurrence.LocationId.HasValue )
+                    if ( occurrence.LocationId.HasValue )
                     {
-                        Rock.CheckIn.KioskLocationAttendance.Remove( _occurrence.LocationId.Value );
+                        Rock.CheckIn.KioskLocationAttendance.Remove( occurrence.LocationId.Value );
                     }
 
 
@@ -518,60 +527,57 @@ namespace RockWeb.Blocks.Groups
         /// </summary>
         private AttendanceOccurrence GetOccurrence()
         {
-            using ( var rockContext = new RockContext() )
+            AttendanceOccurrence occurrence = null;
+
+            var occurrenceService = new AttendanceOccurrenceService( _rockContext );
+
+            // Check to see if a occurrence id was specified on the query string, and if so, query for it
+            int? occurrenceId = PageParameter( "OccurrenceId" ).AsIntegerOrNull();
+            if ( occurrenceId.HasValue && occurrenceId.Value > 0 )
             {
-                AttendanceOccurrence occurrence = null;
+                occurrence = occurrenceService.Get( occurrenceId.Value );
 
-                var occurrenceService = new AttendanceOccurrenceService( rockContext );
+                // If we have a valid occurrence return it now (the date,location,schedule cannot be changed for an existing occurrence)
+                if ( occurrence != null ) return occurrence;
+            }
 
-                // Check to see if a occurrence id was specified on the query string, and if so, query for it
-                int? occurrenceId = PageParameter( "OccurrenceId" ).AsIntegerOrNull();
-                if ( occurrenceId.HasValue && occurrenceId.Value > 0 )
+            // Set occurrence values from query string
+            var occurrenceDate = PageParameter( "Date" ).AsDateTime() ?? PageParameter( "Occurrence" ).AsDateTime();
+            var locationId = PageParameter( "LocationId" ).AsIntegerOrNull();
+            var scheduleId = PageParameter( "ScheduleId" ).AsIntegerOrNull();
+
+            // If this is a postback, check to see if date/location/schedule were updated
+            if ( Page.IsPostBack && _allowAdd )
+            {
+                if ( dpOccurrenceDate.Visible && dpOccurrenceDate.SelectedDate.HasValue )
                 {
-                    occurrence = occurrenceService.Get( occurrenceId.Value );
-
-                    // If we have a valid occurrence return it now (the date,location,schedule cannot be changed for an existing occurrence)
-                    if ( occurrence != null ) return occurrence;
+                    occurrenceDate = dpOccurrenceDate.SelectedDate.Value;
                 }
 
-                // Set occurrence values from query string
-                var occurrenceDate = PageParameter( "Date" ).AsDateTime() ?? PageParameter( "Occurrence" ).AsDateTime();
-                var locationId = PageParameter( "LocationId" ).AsIntegerOrNull();
-                var scheduleId = PageParameter( "ScheduleId" ).AsIntegerOrNull();
-
-                // If this is a postback, check to see if date/location/schedule were updated
-                if ( Page.IsPostBack && _allowAdd )
+                if ( ddlLocation.Visible && ddlLocation.SelectedValueAsInt().HasValue )
                 {
-                    if ( dpOccurrenceDate.Visible && dpOccurrenceDate.SelectedDate.HasValue )
-                    {
-                        occurrenceDate = dpOccurrenceDate.SelectedDate.Value;
-                    }
-
-                    if ( ( locationId ?? 0 ) != 0 && ddlLocation.SelectedValueAsInt().HasValue )
-                    {
-                        locationId = ddlLocation.SelectedValueAsInt().Value;
-                    }
-
-                    if ( ( scheduleId ?? 0 ) != 0 && ddlSchedule.SelectedValueAsInt().HasValue )
-                    {
-                        scheduleId = ddlSchedule.SelectedValueAsInt().Value;
-                    }
+                    locationId = ddlLocation.SelectedValueAsInt().Value;
                 }
 
-                // If an occurrence date was included, but no occurrence was found with that date, and new 
-                // occurrences can be added, create a new one
-                if ( _allowAdd )
+                if ( ddlSchedule.Visible && ddlSchedule.SelectedValueAsInt().HasValue )
                 {
-                    // Create a new occurrence record and return it
-                    return new AttendanceOccurrence
-                    {
-                        Group = _group,
-                        GroupId = _group.Id,
-                        OccurrenceDate = occurrenceDate ?? RockDateTime.Today.Date,
-                        LocationId = locationId,
-                        ScheduleId = scheduleId,
-                    };
+                    scheduleId = ddlSchedule.SelectedValueAsInt().Value;
                 }
+            }
+
+            // If an occurrence date was included, but no occurrence was found with that date, and new 
+            // occurrences can be added, create a new one
+            if ( _allowAdd )
+            {
+                // Create a new occurrence record and return it
+                return new AttendanceOccurrence
+                {
+                    Group = _group,
+                    GroupId = _group.Id,
+                    OccurrenceDate = occurrenceDate ?? RockDateTime.Today.Date,
+                    LocationId = locationId,
+                    ScheduleId = scheduleId,
+                };
             }
 
             return null;

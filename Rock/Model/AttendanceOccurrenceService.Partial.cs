@@ -176,8 +176,8 @@ namespace Rock.Model
                             };
 
                             newOccurrences.Add( newOccurrence );
-                            startDate = startDate.AddDays( 7 );
                         }
+                        startDate = startDate.AddDays( 7 );
                     }
                 }
             }

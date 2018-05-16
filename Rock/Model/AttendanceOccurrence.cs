@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
@@ -135,7 +136,7 @@ namespace Rock.Model
         /// The attendees.
         /// </value>
         [DataMember]
-        public virtual ICollection<Attendance> Attendees { get; set; }
+        public virtual ICollection<Attendance> Attendees { get; set; } = new Collection<Attendance>();
 
         /// <summary>
         /// Gets a value indicating whether attendance was entered (based on presense of any attendee records).

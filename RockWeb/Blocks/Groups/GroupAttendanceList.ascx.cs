@@ -212,7 +212,7 @@ namespace RockWeb.Blocks.Groups
             if ( e.Row.RowType == DataControlRowType.DataRow )
             {
                 var occurrence = e.Row.DataItem as AttendanceListOccurrence;
-                if ( occurrence == null && occurrence.Id == 0 )
+                if ( occurrence == null || occurrence.Id == 0 )
                 {
                     var deleteField = gOccurrences.Columns.OfType<DeleteField>().First();
                     var cell = e.Row.Cells[gOccurrences.GetColumnIndex( deleteField )];
@@ -237,11 +237,12 @@ namespace RockWeb.Blocks.Groups
             };
 
             int? id = e.RowKeyValues["Id"].ToString().AsIntegerOrNull();
-            if ( id.HasValue )
+            if ( id.HasValue  )
             {
                 qryParams.Add( "OccurrenceId", id.Value.ToString() );
             }
-            else
+
+            if ( !id.HasValue || id.Value == 0 )
             {
                 string occurrenceDate = ( (DateTime)e.RowKeyValues["OccurrenceDate"] ).ToString( "yyyy-MM-ddTHH:mm:ss" );
                 qryParams.Add( "Date", occurrenceDate );
@@ -312,6 +313,7 @@ namespace RockWeb.Blocks.Groups
         {
             var rockContext = new RockContext();
             var occurenceService = new AttendanceOccurrenceService( rockContext );
+            var attendanceService = new AttendanceService( rockContext );
             var occurrence = occurenceService.Get( e.RowKeyId );
 
             if ( occurrence != null )
@@ -324,6 +326,10 @@ namespace RockWeb.Blocks.Groups
                     mdGridWarning.Show( errorMessage, ModalAlertType.Alert );
                     return;
                 }
+
+                // Delete the attendees for this occurrence since it is not a cascading delete
+                var attendees = attendanceService.Queryable().Where( a => a.OccurrenceId == occurrence.Id );
+                rockContext.BulkDelete<Attendance>( attendees );
 
                 occurenceService.Delete( occurrence );
                 rockContext.SaveChanges();
@@ -542,7 +548,10 @@ namespace RockWeb.Blocks.Groups
                     .Distinct() )
                 {
                     string parentLocationPath = locationService.GetPath( parentLocationId );
-                    foreach ( var occ in occurrences.Where( o => o.ParentLocationId.Value == parentLocationId ) )
+                    foreach ( var occ in occurrences
+                        .Where( o => 
+                            o.ParentLocationId.HasValue && 
+                            o.ParentLocationId.Value == parentLocationId ) )
                     {
                         occ.ParentLocationPath = parentLocationPath;
                     }
@@ -553,14 +562,28 @@ namespace RockWeb.Blocks.Groups
                 List<AttendanceListOccurrence> sortedOccurrences = null;
                 if ( sortProperty != null )
                 {
-                    sortedOccurrences = occurrences.AsQueryable().Sort( sortProperty ).ToList();
+                    if ( sortProperty.Property == "LocationPath,LocationName" )
+                    {
+                        if ( sortProperty.Direction == SortDirection.Ascending )
+                        {
+                            sortedOccurrences = occurrences.OrderBy( o => o.ParentLocationPath ).ThenBy( o => o.LocationName ).ToList();
+                        }
+                        else
+                        {
+                            sortedOccurrences = occurrences.OrderByDescending( o => o.ParentLocationPath ).ThenByDescending( o => o.LocationName ).ToList();
+                        }
+                    }
+                    else
+                    {
+                        sortedOccurrences = occurrences.AsQueryable().Sort( sortProperty ).ToList();
+                    }
                 }
                 else
                 {
                     sortedOccurrences = occurrences.OrderByDescending( a => a.OccurrenceDate ).ThenByDescending( a => a.StartTime ).ToList();
                 }
 
-                gOccurrences.DataSource = occurrences;
+                gOccurrences.DataSource = sortedOccurrences;
                 gOccurrences.DataBind();
             }
         }

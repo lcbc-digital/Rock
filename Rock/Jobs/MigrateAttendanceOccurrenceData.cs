@@ -193,9 +193,9 @@ UPDATE A
 FROM 
     [Attendance] A
     INNER JOIN [AttendanceOccurrence] O
-        ON O.[GroupId] = A.[GroupId]
-        AND O.[LocationId] = A.[LocationId]
-        AND O.[ScheduleId] = A.[ScheduleId]
+        ON ((O.[GroupId] = A.[GroupId]) or (o.GroupId is null and a.GroupId is null))
+        AND ((O.[LocationId] = A.[LocationId]) or (o.LocationId is null and a.LocationId is null))
+        AND ((O.[ScheduleId] = A.[ScheduleId]) or (o.ScheduleId is null and a.ScheduleId is null))
         AND O.[OccurrenceDate] = CAST(A.[StartDateTime] AS DATE)
 WHERE 
     A.[OccurrenceId] = 1

@@ -26,11 +26,11 @@
                     <Rock:ModalAlert ID="mdGridWarning" runat="server" />
                     <Rock:Grid ID="gOccurrences" runat="server" DisplayType="Full" AllowSorting="true" RowItemText="Occurrence" OnRowSelected="gOccurrences_Edit" >
                         <Columns>
-                            <Rock:DateField DataField="Date" HeaderText="Date" ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left" SortExpression="OccurrenceDate" />
+                            <Rock:DateField DataField="OccurrenceDate" HeaderText="Date" ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left" SortExpression="OccurrenceDate" />
 		                    <Rock:RockTemplateField HeaderText="Location" SortExpression="LocationPath,LocationName">
 		                        <ItemTemplate>
 		                            <%#Eval("LocationName")%><br />
-		                            <small><%#Eval("LocationPath")%></small>
+		                            <small><%#Eval("ParentLocationPath")%></small>
 		                        </ItemTemplate>
 		                    </Rock:RockTemplateField>
                             <Rock:RockBoundField DataField="ScheduleName" HeaderText="Schedule" SortExpression="ScheduleName" />
