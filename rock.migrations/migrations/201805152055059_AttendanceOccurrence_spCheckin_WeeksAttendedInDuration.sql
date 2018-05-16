@@ -33,7 +33,7 @@ BEGIN
     SET @LastSunday = [dbo].[ufnUtility_GetPreviousSundayDate]()
 
     SELECT 
-	    COUNT(DISTINCT a.SundayDate )
+	    COUNT(DISTINCT O.SundayDate )
     FROM
 	    [Attendance] a
 		INNER JOIN [AttendanceOccurrence] O ON O.[Id] = A.[OccurrenceId]

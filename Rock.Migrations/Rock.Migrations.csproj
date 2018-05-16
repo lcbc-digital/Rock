@@ -4927,6 +4927,9 @@
     <Content Include="Migrations\201805072022522_GroupHistory_spCrm_PersonMergeRelationships.sql">
       <DependentUpon>201805072022522_GroupHistory.cs</DependentUpon>
     </Content>
+    <Content Include="Migrations\201805152055059_AttendanceOccurrence_vCheckin_Attendance.sql">
+      <DependentUpon>201805152055059_AttendanceOccurrence.cs</DependentUpon>
+    </Content>
     <Content Include="Migrations\201805152055059_AttendanceOccurrence_vCheckin_GroupTypeAttendance.sql">
       <DependentUpon>201805152055059_AttendanceOccurrence.cs</DependentUpon>
     </Content>

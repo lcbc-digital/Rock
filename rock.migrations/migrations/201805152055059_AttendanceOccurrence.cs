@@ -120,6 +120,7 @@ namespace Rock.Migrations
             Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsAttendance );
             Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsEraDataset );
             Sql( MigrationSQL._201805152055059_AttendanceOccurrence_spCrm_FamilyAnalyticsUpdateVisitDates );
+            Sql( MigrationSQL._201805152055059_AttendanceOccurrence_vCheckin_Attendance );
             Sql( MigrationSQL._201805152055059_AttendanceOccurrence_vCheckin_GroupTypeAttendance );
 
         }

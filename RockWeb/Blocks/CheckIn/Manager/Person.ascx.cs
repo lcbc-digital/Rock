@@ -347,7 +347,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
                     }
 
                     var attendances = new AttendanceService( rockContext )
-                        .Queryable( "Schedule,Group,Location,AttendanceCode" )
+                        .Queryable( "Occurrence.Schedule,Occurrence.Group,Occurrence.Location,AttendanceCode" )
                         .Where( a =>
                             a.PersonAliasId.HasValue &&
                             a.PersonAliasId == personAliasId &&

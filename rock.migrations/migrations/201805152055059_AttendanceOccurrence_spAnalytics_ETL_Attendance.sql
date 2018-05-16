@@ -51,7 +51,7 @@ BEGIN
         ,a.RSVP
         ,a.DidAttend
         ,a.Note
-        ,a.SundayDate
+        ,o.SundayDate
         ,0 -- [IsFirstAttendanceOfType] fill in later
         ,NULL -- [DaysSinceLastAttendanceOfType] fill in later
         ,NEWID() [Guid]
@@ -183,8 +183,9 @@ BEGIN
             ,a.RSVP
             ,a.DidAttend
             ,a.Note
-            ,a.SundayDate
+            ,o.SundayDate
         FROM Attendance a
+		INNER JOIN AttendanceOccurrence o on o.id = a.OccurrenceId
         LEFT JOIN DefinedValue dvSearchType ON dvSearchType.Id = a.SearchTypeValueId
         WHERE isnull(a.DidNotOccur, 0) = 0
         ) x ON x.AttendanceId = asa.AttendanceId

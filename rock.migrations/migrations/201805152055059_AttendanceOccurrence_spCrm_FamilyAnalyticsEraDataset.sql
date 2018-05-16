@@ -119,7 +119,7 @@ BEGIN
 						AND ( g1.[Id] = p.[Id] OR ( g1.[GivingGroupId] IS NOT NULL AND g1.[GivingGroupID] = p.[GivingGroupId] ) )
 						AND fa.[IsTaxDeductible] = 1) AS [EntryGiftCountDurationLong]	
 			, (SELECT 
-					COUNT(DISTINCT a.SundayDate )
+					COUNT(DISTINCT O.SundayDate )
 				FROM
 					[Attendance] a
 					INNER JOIN [AttendanceOccurrence] O ON O.[Id] = A.[OccurrenceId]
@@ -131,7 +131,7 @@ BEGIN
                     AND a.[DidAttend] = 1
 					AND a.[StartDateTime] <= @SundayDateStart AND a.[StartDateTime] >= @SundayExitAttendanceDurationShort) AS [ExitAttendanceCountDurationShort]
 			, (SELECT 
-					COUNT(DISTINCT a.SundayDate )
+					COUNT(DISTINCT O.SundayDate )
 				FROM
 					[Attendance] a
 					INNER JOIN [AttendanceOccurrence] O ON O.[Id] = A.[OccurrenceId]
@@ -143,7 +143,7 @@ BEGIN
                     AND a.[DidAttend] = 1
 					AND a.[StartDateTime] <= @SundayDateStart AND a.[StartDateTime] >= @SundayEntryAttendanceDuration) AS [EntryAttendanceCountDuration]
 			, (SELECT 
-					COUNT(DISTINCT a.SundayDate )
+					COUNT(DISTINCT O.SundayDate )
 				FROM
 					[Attendance] a
 					INNER JOIN [AttendanceOccurrence] O ON O.[Id] = A.[OccurrenceId]

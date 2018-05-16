@@ -4925,6 +4925,37 @@ namespace Rock.Migrations.Migrations {
         ///*/
         ///CREATE VI [rest of string was truncated]&quot;;.
         /// </summary>
+        public static string _201805152055059_AttendanceOccurrence_vCheckin_Attendance {
+            get {
+                return ResourceManager.GetString("_201805152055059_AttendanceOccurrence_vCheckin_Attendance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IF  EXISTS ( SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N&apos;[dbo].[vCheckin_GroupTypeAttendance]&apos;) AND type = N&apos;V&apos; )
+        ///DROP VIEW [dbo].[vCheckin_GroupTypeAttendance]
+        ///GO
+        ///
+        ////*
+        ///&lt;doc&gt;
+        ///	&lt;summary&gt;
+        /// 		This view returns distinct attendance dates for a person and group type
+        ///	&lt;/summary&gt;
+        ///
+        ///	&lt;returns&gt;
+        ///		* GroupTypeId
+        ///        * PersonId
+        ///		* SundayDate
+        ///	&lt;/returns&gt;
+        ///	&lt;remarks&gt;	
+        ///	&lt;/remarks&gt;
+        ///	&lt;code&gt;
+        ///		SELECT * FROM [vCheckin_GroupTypeAttendance] WHERE [GroupTypeId] = 14
+        ///	&lt;/code&gt;
+        ///&lt;/doc&gt;
+        ///*/
+        ///CREATE VI [rest of string was truncated]&quot;;.
+        /// </summary>
         public static string _201805152055059_AttendanceOccurrence_vCheckin_GroupTypeAttendance {
             get {
                 return ResourceManager.GetString("_201805152055059_AttendanceOccurrence_vCheckin_GroupTypeAttendance", resourceCulture);

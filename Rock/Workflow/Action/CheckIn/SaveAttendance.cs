@@ -107,7 +107,7 @@ namespace Rock.Workflow.Action.CheckIn
                                             var primaryAlias = personAliasService.GetPrimaryAlias( person.Person.Id );
                                             if ( primaryAlias != null )
                                             {
-                                                attendanceService.AddOrUpdate( primaryAlias.Id, startDateTime.Date, group.Group.Id,
+                                                attendance = attendanceService.AddOrUpdate( primaryAlias.Id, startDateTime.Date, group.Group.Id,
                                                     location.Location.Id, schedule.Schedule.Id, location.CampusId,
                                                     checkInState.Kiosk.Device.Id, checkInState.CheckIn.SearchType.Id, 
                                                     checkInState.CheckIn.SearchValue, family.Group.Id, attendanceCode.Id );

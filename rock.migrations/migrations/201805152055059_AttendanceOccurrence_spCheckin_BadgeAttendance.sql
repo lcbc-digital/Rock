@@ -95,7 +95,7 @@ BEGIN
 				FROM dbo.ufnUtility_GetSundaysBetweenDates(@StartDay, @LastDay) s
 				LEFT OUTER JOIN (	
 						SELECT 
-							DISTINCT a.[SundayDate]AS [AttendedSunday],
+							DISTINCT O.[SundayDate]AS [AttendedSunday],
 							1 as [Attended]
 						FROM
 							[Attendance] a

@@ -75,7 +75,7 @@ namespace Rock.Model
         /// <param name="searchResultGroupId">The search result group identifier.</param>
         /// <param name="attendanceCodeId">The attendance code identifier.</param>
         /// <returns></returns>
-        public Attendance AddOrUpdate( int personAliasId, DateTime checkinDateTime,
+        public Attendance AddOrUpdate( int? personAliasId, DateTime checkinDateTime,
                     int? groupId, int? locationId, int? scheduleId, int? campusId,
                     int? deviceId, int? searchTypeValueId, string searchValue, int? searchResultGroupId, int? attendanceCodeId )
         {
@@ -98,6 +98,7 @@ namespace Rock.Model
 
                     var newOccurrenceService = new AttendanceOccurrenceService( newContext );
                     newOccurrenceService.Add( occurrence );
+                    newContext.SaveChanges();
 
                     // Query for the new occurrence using original context.
                     occurrence = occurrenceService.Get( occurrence.Id );
@@ -108,10 +109,14 @@ namespace Rock.Model
             if ( occurrence == null ) return null;
 
             // Query for existing attendance record
-            var attendance = occurrence.Attendees
+            Attendance attendance = null;
+            if ( personAliasId.HasValue )
+            {
+                attendance = occurrence.Attendees
                 .FirstOrDefault( a =>
                     a.PersonAliasId.HasValue &&
-                    a.PersonAliasId.Value == personAliasId );
+                    a.PersonAliasId.Value == personAliasId.Value );
+            }
 
             // If an attendance record doesn't exist for the occurrence, add a new record
             if ( attendance == null )
@@ -149,7 +154,7 @@ namespace Rock.Model
         /// <returns>The first <see cref="Rock.Model.Attendance"/> entity that matches the provided values.</returns>
         public Attendance Get( DateTime date, int locationId, int scheduleId, int groupId, int personId )
         {
-            return Queryable( "Group,Schedule,PersonAlias.Person" )
+            return Queryable( "Occurrence.Group,Occurrence.Schedule,PersonAlias.Person" )
                 .FirstOrDefault(a => 
                     a.Occurrence.OccurrenceDate == date.Date &&
                     a.Occurrence.LocationId == locationId &&
@@ -166,7 +171,7 @@ namespace Rock.Model
         /// <returns>A queryable collection of <see cref="Rock.Model.Attendance"/> entities for a specific date and location.</returns>
         public IQueryable<Attendance> GetByDateAndLocation( DateTime date, int locationId )
         {
-            return Queryable( "Group,Schedule,PersonAlias.Person" )
+            return Queryable( "Occurrence.Group,Occurrence.Schedule,PersonAlias.Person" )
                 .Where( a =>
                     a.Occurrence.OccurrenceDate == date.Date &&
                     a.Occurrence.LocationId == locationId &&

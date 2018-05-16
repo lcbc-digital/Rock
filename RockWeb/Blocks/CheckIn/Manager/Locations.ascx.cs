@@ -1418,7 +1418,7 @@ namespace RockWeb.Blocks.CheckIn.Manager
                         var dayStart = RockDateTime.Today;
                         var now = RockDateTime.Now;
                         var attendees = new AttendanceService( rockContext )
-                            .Queryable( "Group,PersonAlias.Person,Schedule,AttendanceCode" )
+                            .Queryable( "Occurrence.Group,PersonAlias.Person,Occurrence.Schedule,AttendanceCode" )
                             .AsNoTracking()
                             .Where( a =>
                                 a.StartDateTime > dayStart &&

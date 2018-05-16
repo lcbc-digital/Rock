@@ -2567,7 +2567,7 @@ namespace RockWeb.Blocks.Examples
                         IssueDateTime = RockDateTime.Now,
                     };
 
-                    var attendance = attendanceService.AddOrUpdate( member.Person.PrimaryAliasId.Value, checkinDateTime, item.GroupId, item.LocationId, scheduleId, 1, _kioskDeviceId, null, null, null, null );
+                    var attendance = attendanceService.AddOrUpdate( member.Person.PrimaryAliasId, checkinDateTime, item.GroupId, item.LocationId, scheduleId, 1, _kioskDeviceId, null, null, null, null );
                     attendance.AttendanceCode = attendanceCode;
 
                     if ( !attendanceData.Keys.Contains( member.Person.Guid ))
