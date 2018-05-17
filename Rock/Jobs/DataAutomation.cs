@@ -1174,16 +1174,14 @@ Update Family Status: {updateFamilyStatus}
                                 using ( var updateRockContext = new RockContext() )
                                 {
                                     updateRockContext.People.Attach( person );
-                                    if ( person != null )
-                                    {
-                                        recordsUpdated++;
-                                        person.ConnectionStatusValueId = connectionStatusValueId;
-                                        updateRockContext.SaveChanges();
+                                    
+                                    recordsUpdated++;
+                                    person.ConnectionStatusValueId = connectionStatusValueId;
+                                    updateRockContext.SaveChanges();
 
-                                        if ( recordsUpdated % 100 == 0 )
-                                        {
-                                            context.UpdateLastStatusMessage( $"Processing Connection Status Update: {recordsUpdated:N0} of {totalToUpdate:N0}" );
-                                        }
+                                    if ( recordsUpdated % 100 == 0 )
+                                    {
+                                        context.UpdateLastStatusMessage( $"Processing Connection Status Update: {recordsUpdated:N0} of {totalToUpdate:N0}" );
                                     }
                                 }
                             }
