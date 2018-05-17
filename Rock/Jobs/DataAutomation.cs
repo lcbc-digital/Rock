@@ -66,12 +66,16 @@ namespace Rock.Jobs
             string updateFamilyCampusResult = UpdateFamilyCampus( context );
             string moveAdultChildrenResult = MoveAdultChildren( context );
             string genderAutofill = GenderAutoFill( context );
+            string updatePersonConnectionStatus = UpdatePersonConnectionStatus( context );
+            string updateFamilyStatus = UpdateFamilyStatus( context );
 
             context.UpdateLastStatusMessage( $@"Reactivate People: {reactivateResult}
 Inactivate People: {inactivateResult}
 Update Family Campus: {updateFamilyCampusResult}
 Move Adult Children: {moveAdultChildrenResult}
 Gender Autofill: {genderAutofill}
+Update Connection Status: {updatePersonConnectionStatus}
+Update Family Status: {updateFamilyStatus}
 " );
         }
 
@@ -1129,7 +1133,125 @@ Gender Autofill: {genderAutofill}
             }
         }
 
-        #endregion
+        #endregion Move Adult Children
+
+        #region Update Person Connection Status
+
+        /// <summary>
+        /// Updates the person connection status.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <returns></returns>
+        private string UpdatePersonConnectionStatus( IJobExecutionContext context )
+        {
+            var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_PERSON_CONNECTION_STATUS ).FromJsonOrNull<Utility.Settings.DataAutomation.UpdatePersonConnectionStatus>();
+            if ( settings == null || !settings.IsEnabled )
+            {
+                return "Not Enabled";
+            }
+
+            int recordsUpdated = 0;
+
+            context.UpdateLastStatusMessage( $"Processing Connection Status Update" );
+
+            foreach ( var connectionStatusDataviewMapping in settings.ConnectionStatusValueIdDataviewIdMapping.Where( a => a.Value.HasValue ) )
+            {
+                int connectionStatusValueId = connectionStatusDataviewMapping.Key;
+                int dataViewId = connectionStatusDataviewMapping.Value.Value;
+                using ( var dataViewRockContext = new RockContext() )
+                {
+                    var dataView = new DataViewService( dataViewRockContext ).Get( dataViewId );
+                    if ( dataView != null )
+                    {
+                        List<string> errorMessages = new List<string>();
+                        var qryPersonsInDataView = dataView.GetQuery( null, dataViewRockContext, null, out errorMessages ) as IQueryable<Person>;
+                        if ( qryPersonsInDataView != null)
+                        {
+                            var personsToUpdate = qryPersonsInDataView.Where( a => a.ConnectionStatusValueId != connectionStatusValueId ).AsNoTracking().ToList();
+                            int totalToUpdate = personsToUpdate.Count();
+                            foreach( var person in personsToUpdate )
+                            {
+                                using ( var updateRockContext = new RockContext() )
+                                {
+                                    updateRockContext.People.Attach( person );
+                                    if ( person != null )
+                                    {
+                                        recordsUpdated++;
+                                        person.ConnectionStatusValueId = connectionStatusValueId;
+                                        updateRockContext.SaveChanges();
+
+                                        if ( recordsUpdated % 100 == 0 )
+                                        {
+                                            context.UpdateLastStatusMessage( $"Processing Connection Status Update: {recordsUpdated:N0} of {totalToUpdate:N0}" );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Format the result message
+            return $"{recordsUpdated:N0} person records were updated with new connection status.";
+        }
+
+        #endregion  Update Person Connection Status
+
+        #region Update Family Status
+
+        /// <summary>
+        /// Updates the family status.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <returns></returns>
+        private string UpdateFamilyStatus( IJobExecutionContext context )
+        {
+            var settings = Rock.Web.SystemSettings.GetValue( SystemSetting.DATA_AUTOMATION_UPDATE_FAMILY_STATUS ).FromJsonOrNull<Utility.Settings.DataAutomation.UpdateFamilyStatus>();
+            if ( settings == null || !settings.IsEnabled )
+            {
+                return "Not Enabled";
+            }
+
+            int recordsUpdated = 0;
+
+            foreach ( var groupStatusDataviewMapping in settings.GroupStatusValueIdDataviewIdMapping.Where( a => a.Value.HasValue ) )
+            {
+                int groupStatusValueId = groupStatusDataviewMapping.Key;
+                int dataViewId = groupStatusDataviewMapping.Value.Value;
+                using ( var dataViewRockContext = new RockContext() )
+                {
+                    var dataView = new DataViewService( dataViewRockContext ).Get( dataViewId );
+                    if ( dataView != null )
+                    {
+                        List<string> errorMessages = new List<string>();
+                        var qryGroupsInDataView = dataView.GetQuery( null, dataViewRockContext, null, out errorMessages ) as IQueryable<Group>;
+                        if ( qryGroupsInDataView != null )
+                        {
+                            var groupIdsToUpdate = qryGroupsInDataView.Where( a => a.StatusValueId != groupStatusValueId ).Select( a => a.Id ).ToList();
+                            foreach ( var groupId in groupIdsToUpdate )
+                            {
+                                using ( var updateRockContext = new RockContext() )
+                                {
+                                    var group = new GroupService( updateRockContext ).Get( groupId );
+                                    if ( group != null )
+                                    {
+                                        recordsUpdated++;
+                                        group.StatusValueId = groupStatusValueId;
+                                        updateRockContext.SaveChanges();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Format the result message
+            return $"{recordsUpdated:N0} families were updated with new status.";
+        }
+
+        #endregion  Update Family Status
 
         #region Helper Methods
 
@@ -1405,7 +1527,7 @@ Gender Autofill: {genderAutofill}
                 .Select( i => i.EntityId );
         }
 
-        #endregion
+        #endregion Helper Methods
 
         #region Helper Classes
 

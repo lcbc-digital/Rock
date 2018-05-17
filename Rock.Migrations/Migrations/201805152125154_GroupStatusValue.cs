@@ -36,26 +36,30 @@ namespace Rock.Migrations
             AddForeignKey("dbo.GroupType", "GroupStatusDefinedTypeId", "dbo.DefinedType", "Id");
             AddForeignKey("dbo.Group", "StatusValueId", "dbo.DefinedValue", "Id");
 
-            RockMigrationHelper.AddDefinedType( "Group", "Family Status", "Determines the level of connection (Participant , Unknown, etc.) the family has to the church.", "792C6979-0F40-47C5-BD0C-06FA7DF22837", @"" );
+            // Update description on Person Connection Status and Source of Visit
+            RockMigrationHelper.AddDefinedType( "Person", "Connection Status", "Determines the level of connection (member, visitor, etc.) the individual has to the organization.", "2E6540EA-63F0-40FE-BE50-F2A84735E600", @"" );
+            RockMigrationHelper.AddDefinedType( "Person", "Source of Visit", "Notes how a person first heard (Website, Friend, Driving by, etc.) about the organization.", "54C1EC6C-3DE8-42F4-9445-6A2F91C16B08", @"" );
+
+            // Add new DefinedType for Group Family Status
+            RockMigrationHelper.AddDefinedType( "Group", "Family Status", "Determines the level of connection (Participant , Unknown, etc.) the family has to the organization.", "792C6979-0F40-47C5-BD0C-06FA7DF22837", @"" );
             RockMigrationHelper.UpdateDefinedValue( "792C6979-0F40-47C5-BD0C-06FA7DF22837", "eRA", "", "4B5776E9-0A2A-49F0-A04F-337DBC2A421F", false );
             RockMigrationHelper.UpdateDefinedValue( "792C6979-0F40-47C5-BD0C-06FA7DF22837", "Participant", "", "079E625F-AA51-41B8-885A-CA5A007185CF", false );
             RockMigrationHelper.UpdateDefinedValue( "792C6979-0F40-47C5-BD0C-06FA7DF22837", "Unknown", "", "99844B92-3D63-4246-BB22-B0DB7BDA8D01", false );
 
             Sql( @"
 DECLARE @GROUPTYPE_FAMILY UNIQUEIDENTIFIER = '790E3215-3B10-442B-AF69-616C0DCB998E'
-    , @GroupStatusFamily INT = (
-        SELECT TOP 1 Id
+	,@GroupStatusFamily INT = (
+		SELECT TOP 1 Id
+		FROM DefinedType
+		WHERE [Guid] = '792C6979-0F40-47C5-BD0C-06FA7DF22837'
+		)
 
-        FROM DefinedType
-
-        WHERE[Guid] = '792C6979-0F40-47C5-BD0C-06FA7DF22837'
-        )
-
-UPDATE[GroupType]
+UPDATE [GroupType]
 SET GroupStatusDefinedTypeId = @GroupStatusFamily
-WHERE[Guid] = @GROUPTYPE_FAMILY
-
-    AND GroupStatusDefinedTypeId != @GroupStatusFamily" );
+WHERE [Guid] = @GROUPTYPE_FAMILY
+	AND GroupStatusDefinedTypeId IS NULL
+	OR GroupStatusDefinedTypeId != @GroupStatusFamily
+" );
 
         }
         
@@ -64,17 +68,17 @@ WHERE[Guid] = @GROUPTYPE_FAMILY
         /// </summary>
         public override void Down()
         {
-            RockMigrationHelper.DeleteDefinedValue( "079E625F-AA51-41B8-885A-CA5A007185CF" ); // Participant
-            RockMigrationHelper.DeleteDefinedValue( "4B5776E9-0A2A-49F0-A04F-337DBC2A421F" ); // eRA
-            RockMigrationHelper.DeleteDefinedValue( "99844B92-3D63-4246-BB22-B0DB7BDA8D01" ); // Unknown
-            RockMigrationHelper.DeleteDefinedType( "792C6979-0F40-47C5-BD0C-06FA7DF22837" ); // Family Status
-
             DropForeignKey("dbo.Group", "StatusValueId", "dbo.DefinedValue");
             DropForeignKey("dbo.GroupType", "GroupStatusDefinedTypeId", "dbo.DefinedType");
             DropIndex("dbo.GroupType", new[] { "GroupStatusDefinedTypeId" });
             DropIndex("dbo.Group", new[] { "StatusValueId" });
             DropColumn("dbo.GroupType", "GroupStatusDefinedTypeId");
             DropColumn("dbo.Group", "StatusValueId");
+
+            RockMigrationHelper.DeleteDefinedValue( "079E625F-AA51-41B8-885A-CA5A007185CF" ); // Participant
+            RockMigrationHelper.DeleteDefinedValue( "4B5776E9-0A2A-49F0-A04F-337DBC2A421F" ); // eRA
+            RockMigrationHelper.DeleteDefinedValue( "99844B92-3D63-4246-BB22-B0DB7BDA8D01" ); // Unknown
+            RockMigrationHelper.DeleteDefinedType( "792C6979-0F40-47C5-BD0C-06FA7DF22837" ); // Family Status
         }
     }
 }
