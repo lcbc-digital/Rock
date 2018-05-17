@@ -1173,6 +1173,7 @@ Update Family Status: {updateFamilyStatus}
                             {
                                 using ( var updateRockContext = new RockContext() )
                                 {
+                                    // Attach the person to the updateRockContext so that it'll be tracked/saved using updateRockContext 
                                     updateRockContext.People.Attach( person );
                                     
                                     recordsUpdated++;
@@ -1213,6 +1214,8 @@ Update Family Status: {updateFamilyStatus}
 
             int recordsUpdated = 0;
 
+            context.UpdateLastStatusMessage( $"Processing Family Status Update" );
+
             foreach ( var groupStatusDataviewMapping in settings.GroupStatusValueIdDataviewIdMapping.Where( a => a.Value.HasValue ) )
             {
                 int groupStatusValueId = groupStatusDataviewMapping.Key;
@@ -1226,17 +1229,22 @@ Update Family Status: {updateFamilyStatus}
                         var qryGroupsInDataView = dataView.GetQuery( null, dataViewRockContext, null, out errorMessages ) as IQueryable<Group>;
                         if ( qryGroupsInDataView != null )
                         {
-                            var groupIdsToUpdate = qryGroupsInDataView.Where( a => a.StatusValueId != groupStatusValueId ).Select( a => a.Id ).ToList();
-                            foreach ( var groupId in groupIdsToUpdate )
+                            var groupsToUpdate = qryGroupsInDataView.Where( a => a.StatusValueId != groupStatusValueId ).AsNoTracking().ToList();
+                            int totalToUpdate = groupsToUpdate.Count();
+                            foreach ( var group in groupsToUpdate )
                             {
                                 using ( var updateRockContext = new RockContext() )
                                 {
-                                    var group = new GroupService( updateRockContext ).Get( groupId );
-                                    if ( group != null )
+                                    // Attach the group to the updateRockContext so that it'll be tracked/saved using updateRockContext 
+                                    updateRockContext.Groups.Attach( group );
+                                    
+                                    recordsUpdated++;
+                                    group.StatusValueId = groupStatusValueId;
+                                    updateRockContext.SaveChanges();
+
+                                    if ( recordsUpdated % 100 == 0 )
                                     {
-                                        recordsUpdated++;
-                                        group.StatusValueId = groupStatusValueId;
-                                        updateRockContext.SaveChanges();
+                                        context.UpdateLastStatusMessage( $"Processing Family Status Update: {recordsUpdated:N0} of {totalToUpdate:N0}" );
                                     }
                                 }
                             }

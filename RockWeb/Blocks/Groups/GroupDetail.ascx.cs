@@ -1446,6 +1446,11 @@ namespace RockWeb.Blocks.Groups
             ShowGroupTypeEditDetails( groupTypeCache, group, true );
 
             dvpGroupStatus.DefinedTypeId = groupTypeCache.GroupStatusDefinedTypeId;
+            if ( groupTypeCache.GroupStatusDefinedType != null )
+            {
+                dvpGroupStatus.Label = groupTypeCache.GroupStatusDefinedType.ToString();
+            }
+
             dvpGroupStatus.Visible = groupTypeCache.GroupStatusDefinedTypeId.HasValue;
             dvpGroupStatus.SetValue( group.StatusValueId );
 
