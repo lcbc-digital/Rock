@@ -128,14 +128,21 @@ namespace Rock.Slingshot
             var attendancesAlreadyExistForeignIdHash = new HashSet<int>( qryAttendancesWithForeignIds.Select( a => a.ForeignId.Value ).ToList() );
 
             // Get list of existing occurrence records that have already been created
-            var qryOccurrencesWithForeignIds = new AttendanceOccurrenceService( rockContext ).Queryable().Where( o => o.ForeignId.HasValue && o.ForeignKey == foreignSystemKey );
-            var occurrencesAlreadyExistForeignIdHash = new HashSet<int>( qryOccurrencesWithForeignIds.Select( o => o.ForeignId.Value ).ToList() );
+            var existingOccurrences = new HashSet<ImportOccurrence>( new AttendanceOccurrenceService( rockContext ).Queryable()
+                .Select( o => new ImportOccurrence
+                {
+                    Id = o.Id,
+                    GroupId = o.GroupId,
+                    LocationId = o.LocationId,
+                    ScheduleId = o.ScheduleId,
+                    OccurrenceDate = o.OccurrenceDate
+                } ) );
 
             // Get the attendance records being imported that are new
             var newAttendanceImports = attendanceImports.Where( a => !a.AttendanceForeignId.HasValue || !attendancesAlreadyExistForeignIdHash.Contains( a.AttendanceForeignId.Value ) ).ToList();
 
             // Create list of occurrences to be bulk inserted
-            var occurrencesToInsert = new List<AttendanceOccurrence>();
+            var newOccurrences = new List<ImportOccurrence>();
 
             // Get unique combination of group/location/schedule/date for attendance records being added
             var newAttendanceOccurrenceKeys = newAttendanceImports
@@ -150,9 +157,7 @@ namespace Rock.Slingshot
                 .ToList();
             foreach ( var groupKey in newAttendanceOccurrenceKeys )
             {
-                var occurrence = new AttendanceOccurrence();
-
-                occurrence.OccurrenceDate = groupKey.OccurrenceDate;
+                var occurrence = new ImportOccurrence();
 
                 if ( groupKey.GroupForeignId.HasValue )
                 {
@@ -161,59 +166,57 @@ namespace Rock.Slingshot
 
                 if ( groupKey.LocationForeignId.HasValue )
                 {
-                    occurrence.LocationId = groupIdLookup.GetValueOrNull( groupKey.LocationForeignId.Value );
+                    occurrence.LocationId = locationIdLookup.GetValueOrNull( groupKey.LocationForeignId.Value );
                 }
 
                 if ( groupKey.ScheduleForeignId.HasValue )
                 {
-                    occurrence.ScheduleId = groupIdLookup.GetValueOrNull( groupKey.ScheduleForeignId.Value );
+                    occurrence.ScheduleId = scheduleIdLookup.GetValueOrNull( groupKey.ScheduleForeignId.Value );
                 }
 
-                // Hash the group/location/schedule/date ids
-                MD5 md5Hasher = MD5.Create();
-                var hashed = md5Hasher.ComputeHash( Encoding.UTF8.GetBytes( $@"
- {occurrence.GroupId}
- {occurrence.LocationId}
- {occurrence.ScheduleId}
- {occurrence.OccurrenceDate}
-" ) );
-                int occurrenceForeignId = Math.Abs( BitConverter.ToInt32( hashed, 0 ) ); // used abs to ensure positive number */
+                occurrence.OccurrenceDate = groupKey.OccurrenceDate;
 
-                // If this hash combination has not yet been imported, lets do that
-                if ( !occurrencesAlreadyExistForeignIdHash.Contains( occurrenceForeignId ) )
+                // If we haven'r already added it to list, and it doesn't already exist, add it to list
+                if ( !existingOccurrences.Any( o =>
+                        o.GroupId == occurrence.GroupId &&
+                        o.LocationId == occurrence.LocationId &&
+                        o.ScheduleId == occurrence.ScheduleId &&
+                        o.OccurrenceDate == occurrence.OccurrenceDate ) )
                 {
-                    occurrence.ForeignId = occurrenceForeignId;
-                    occurrence.ForeignKey = foreignSystemKey;
-
-                    occurrence.OccurrenceDate = groupKey.OccurrenceDate;
-
-                    if ( groupKey.GroupForeignId.HasValue )
-                    {
-                        occurrence.GroupId = groupIdLookup.GetValueOrNull( groupKey.GroupForeignId.Value );
-                    }
-
-                    if ( groupKey.LocationForeignId.HasValue )
-                    {
-                        occurrence.LocationId = groupIdLookup.GetValueOrNull( groupKey.LocationForeignId.Value );
-                    }
-
-                    if ( groupKey.ScheduleForeignId.HasValue )
-                    {
-                        occurrence.ScheduleId = groupIdLookup.GetValueOrNull( groupKey.ScheduleForeignId.Value );
-                    }
-
-                    occurrence.CreatedDateTime = importDateTime;
-                    occurrence.ModifiedDateTime = importDateTime;
-
-                    occurrencesToInsert.Add( occurrence );
+                    newOccurrences.Add( occurrence );
                 }
             }
 
+            var occurrencesToInsert = newOccurrences
+                .GroupBy( n => new 
+                {
+                    n.GroupId,
+                    n.LocationId,
+                    n.ScheduleId,
+                    n.OccurrenceDate
+                } )
+                .Select( o => new AttendanceOccurrence
+                {
+                    GroupId = o.Key.GroupId,
+                    LocationId = o.Key.LocationId,
+                    ScheduleId = o.Key.ScheduleId,
+                    OccurrenceDate = o.Key.OccurrenceDate 
+                } )
+                .ToList();
+
+            // Add all the new occurrences
             rockContext.BulkInsert( occurrencesToInsert );
 
-            // Get all the existing occurrences that have been imported
-            var occurrenceIdLookup = new AttendanceOccurrenceService( rockContext ).Queryable().Where( a => a.ForeignId.HasValue && a.ForeignKey == foreignSystemKey )
-                .Select( a => new { a.Id, a.ForeignId } ).ToDictionary( k => k.ForeignId.Value, v => v.Id );
+            // Load all the existing occurrences again.
+            existingOccurrences = new HashSet<ImportOccurrence>( new AttendanceOccurrenceService( rockContext ).Queryable()
+                .Select( o => new ImportOccurrence
+                {
+                    Id = o.Id,
+                    GroupId = o.GroupId,
+                    LocationId = o.LocationId,
+                    ScheduleId = o.ScheduleId,
+                    OccurrenceDate = o.OccurrenceDate
+                } ) );
 
             var attendancesToInsert = new List<Attendance>( newAttendanceImports.Count );
 
@@ -247,20 +250,18 @@ namespace Rock.Slingshot
                     scheduleId = scheduleIdLookup.GetValueOrNull( attendanceImport.ScheduleForeignId.Value );
                 }
 
-                // Hash the group/location/schedule/date ids
-                MD5 md5Hasher = MD5.Create();
-                var hashed = md5Hasher.ComputeHash( Encoding.UTF8.GetBytes( $@"
- {groupId}
- {locationId}
- {scheduleId}
- {occurrenceDate}
-" ) );
-                int occurrenceForeignId = Math.Abs( BitConverter.ToInt32( hashed, 0 ) ); // used abs to ensure positive number */
-                var occurrenceId = occurrenceIdLookup.GetValueOrNull( occurrenceForeignId );
+                var occurrenceId = existingOccurrences
+                    .Where( o =>
+                        o.GroupId == groupId &&
+                        o.LocationId == locationId &&
+                        o.ScheduleId == scheduleId &&
+                        o.OccurrenceDate == occurrenceDate )
+                    .Select( o => o.Id )
+                    .FirstOrDefault(); 
 
-                if ( occurrenceId.HasValue )
+                if ( occurrenceId > 0 )
                 {
-                    attendance.OccurrenceId = occurrenceId.Value;
+                    attendance.OccurrenceId = occurrenceId;
                     attendance.PersonAliasId = personAliasIdLookup.GetValueOrNull( attendanceImport.PersonForeignId );
                     attendance.Note = attendanceImport.Note;
                     attendance.DidAttend = true;
@@ -2065,5 +2066,14 @@ and ft.Id not in (select TransactionId from FinancialTransactionImage)" );
         }
 
         #endregion NoteImport
+    }
+
+    public class ImportOccurrence
+    {
+        public int Id { get; set; }
+        public int? GroupId { get; set; }
+        public int? LocationId { get; set; }
+        public int? ScheduleId { get; set; }
+        public DateTime OccurrenceDate { get; set; }
     }
 }
