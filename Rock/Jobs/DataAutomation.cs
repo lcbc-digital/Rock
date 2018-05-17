@@ -1300,9 +1300,9 @@ Update Family Status: {updateFamilyStatus}
                 return new AttendanceService( rockContext )
                     .Queryable().AsNoTracking()
                     .Where( a =>
-                        a.Group != null &&
-                        a.Group.GroupType != null &&
-                        a.Group.GroupType.AttendanceCountsAsWeekendService &&
+                        a.Occurrence.Group != null &&
+                        a.Occurrence.Group.GroupType != null &&
+                        a.Occurrence.Group.GroupType.AttendanceCountsAsWeekendService &&
                         a.StartDateTime >= startDate &&
                         a.DidAttend.HasValue &&
                         a.DidAttend.Value == true &&
@@ -1333,7 +1333,7 @@ Update Family Status: {updateFamilyStatus}
                 var qry = new AttendanceService( rockContext )
                     .Queryable().AsNoTracking()
                     .Where( a =>
-                        a.Group != null &&
+                        a.Occurrence.Group != null &&
                         a.StartDateTime >= startDate &&
                         a.DidAttend.HasValue &&
                         a.DidAttend.Value == true &&
@@ -1341,12 +1341,12 @@ Update Family Status: {updateFamilyStatus}
 
                 if ( includeGroupTypeIds != null && includeGroupTypeIds.Any() )
                 {
-                    qry = qry.Where( t => includeGroupTypeIds.Contains( t.Group.GroupTypeId ) );
+                    qry = qry.Where( t => includeGroupTypeIds.Contains( t.Occurrence.Group.GroupTypeId ) );
                 }
 
                 if ( excludeGroupTypeIds != null && excludeGroupTypeIds.Any() )
                 {
-                    qry = qry.Where( t => !excludeGroupTypeIds.Contains( t.Group.GroupTypeId ) );
+                    qry = qry.Where( t => !excludeGroupTypeIds.Contains( t.Occurrence.Group.GroupTypeId ) );
                 }
 
                 return qry
