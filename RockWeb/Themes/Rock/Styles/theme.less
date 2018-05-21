@@ -89,8 +89,18 @@ textarea,
 // 2. Bootstrap Overrides    */
 // -------------------------
 
+.badge {
+  border-radius: @border-radius-base;
+}
+
 .well {
   .box-shadow(none)
+}
+
+.toggle-container {
+  .btn-group {
+    vertical-align: top;
+  }
 }
 
 .btn-square {
@@ -125,7 +135,7 @@ textarea,
       padding: 2px 24px 17px;
       margin-right: 0;
       line-height: @line-height-base;
-      color: @gray;
+      color: @gray-dark;
       border: 0;
       transition: color 300ms ease-in-out;
       &::after {
@@ -146,7 +156,7 @@ textarea,
         border: 0;
         &::after {
           height: 4px;
-          background-color: rgb(170, 170, 170);
+          background-color: @gray;
           opacity: 1;
         }
       }
@@ -180,14 +190,6 @@ textarea,
 }
 
 .tooltip {
-  &.fade{
-    animation-name: css-1;
-    animation-duration: .267s;
-    animation-timing-function: cubic-bezier(.1, .25, .75, .9);
-    animation-delay: 300ms;
-    .transition(none);
-  }
-
   &.top {
     margin-bottom: 1px;
     .tooltip-arrow {
@@ -284,13 +286,22 @@ textarea,
     margin: 5px 0 0 7px;
     color: @ui-5;
     text-decoration: none;
+    position: absolute;
     background: #fff;
+
+    &.is-open {
+      background: @panel-subheading;
+    }
   }
 
   .grid-filter-entry {
     h4 { display: none; }
 
     padding-top: 37px;
+  }
+
+  .grid-filter-overview fieldset {
+    padding: 37px 16px 8px;
   }
 }
 
@@ -376,7 +387,7 @@ textarea,
 
 .rollover-item {
   > a {
-    color: @ui-5;
+    color: @gray;
 
     &:hover,
     &:focus {
@@ -490,7 +501,7 @@ td.grid-actions {
 
   .checkbox:last-child,
   .radio:last-child {
-    margin: 0;
+    margin: 0 !important;
   }
 
   .checkbox input[type="checkbox"] + span.label-text::before,
@@ -603,6 +614,15 @@ td.grid-actions {
     }
   }
 
+  .navbar-nav.contextsetter, .contextsetter {
+    margin: 14px;
+    background-color: @btn-default-bg;
+    border: 1px solid @btn-default-border;
+    a {
+      color: @btn-default-color;
+    }
+  }
+
   // Bookmarks
   //
   // .bookmarks {
@@ -668,7 +688,7 @@ td.grid-actions {
     }
 
     input.searchinput {
-      padding: 15px 0 15px 30px;
+      padding: 15px 0 15px 34px;
       color: @navbartop-color;
     }
 
@@ -686,11 +706,11 @@ td.grid-actions {
     }
 
     .tt-suggestion p {
-      padding: 13px 15px 13px 10px;
+      padding: 10px 15px 10px 10px;
     }
 
     .tt-hint {
-      padding: 14.5px 4px 4px 30px;
+      padding: 14.5px 4px 4px 34px;
       color: @navbartop-color;
       opacity: .5;
     }
@@ -974,27 +994,27 @@ td.grid-actions {
           }
 
           &.title {
-            padding: 24px 20px 28px;
+            padding: 24px 20px 27px;
             margin: 0 -20px;
-            font-size: 28px; 
+            font-size: 28px;
             font-weight: @font-weight-light;
             line-height: 1;
             color: @navbarside-color;
           }
-  
+
           &.header {
             padding-top: 11px;
             padding-left: 5px !important;
             margin-top: 24px;
-            margin-bottom: 20px;
+            margin-bottom: (@line-height-computed / 2);
             font-size: 11px;
             font-weight: 600;
             line-height: 1;
-            color: #fff;
+            color: rgba(167,174,181,.6);
             text-transform: uppercase;
             letter-spacing: 2px;
             border-top: 1px solid rgba(167,174,181,.6);
-  
+
             &:nth-child(2) {
               margin-top: 0;
             }
@@ -1073,6 +1093,7 @@ body.navbar-side-close {
     padding: 20px 15px;
     background-color: @pagetitle-background;
     background-color: var(--pagetitle-background);
+    border-bottom: 1px solid @gray-lighter;
 
     .title {
       margin: 0;
@@ -1224,15 +1245,6 @@ body.navbar-side-close {
   }
 }
 
-// family edit
-.editgroup-list li.member .radio .label-text::before {
-  width: 16px;
-  height: 16px;
-  padding-left: 1px;
-  font-size: 8px;
-  line-height: 12px;
-}
-
 /*#endregion */
 
 /*#region
@@ -1255,6 +1267,7 @@ body.navbar-side-close {
   display: block;
   min-height: 19px;
   padding-left: 28px;  // Not sure if needed
+  margin: 7px 16px 7px 0 !important;
 
   label { // Override forms.less
     padding-left: 0;
@@ -1269,7 +1282,15 @@ body.navbar-side-close {
 
 .radio-inline,
 .checkbox-inline {
+  padding-right: 16px;
   padding-left: 30px;
+  margin-left: 0;
+}
+
+.radio-inline:first-child,
+.checkbox-inline:first-child,
+.radio-inline+.radio-inline {
+  margin-left: 0;
 }
 
 .radio,
@@ -1471,14 +1492,12 @@ body.navbar-side-close {
   0% {
     transform: translate3d(0, -10px, 0);
   }
-  
+
   100% {
     transform: translate3d(0, 0, 0);
   }
 
 }
-
-
 
 /*#endregion */
 // @import "_print.less";

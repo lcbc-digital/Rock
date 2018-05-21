@@ -486,6 +486,7 @@
     <Compile Include="Cache\Entities\CacheWorkflowType.cs" />
     <Compile Include="Cache\IItemCache.cs" />
     <Compile Include="Cache\NonEntities\CacheEntityNoteTypes.cs" />
+    <Compile Include="Cache\NonEntities\CacheIdFromGuid.cs" />
     <Compile Include="Cache\NonEntities\CacheWorkflowTriggers.cs" />
     <Compile Include="Cache\RockCache.cs" />
     <Compile Include="Cache\IRockCacheManager.cs" />
@@ -1289,6 +1290,7 @@
     <Compile Include="Model\RestController.cs" />
     <Compile Include="Model\RestControllerService.Partial.cs" />
     <Compile Include="Model\Schedule.cs" />
+    <Compile Include="Model\ScheduleService.Partial.cs" />
     <Compile Include="Model\SignalType.cs" />
     <Compile Include="Model\SiteDomain.cs" />
     <Compile Include="Model\LavaShortCode.cs" />
@@ -1360,6 +1362,7 @@
     <Compile Include="Reporting\DataSelect\PrayerRequest\CampusSelect.cs" />
     <Compile Include="Reporting\DataSelect\PrayerRequest\CategorySelect.cs" />
     <Compile Include="Reporting\DataSelect\PrayerRequest\PersonLinkSelect.cs" />
+    <Compile Include="Reporting\DataTransform\Person\FamilyMembersTransform.cs" />
     <Compile Include="Reporting\DataTransform\Person\FatherTransform.cs" />
     <Compile Include="Reporting\DataTransform\Person\GrandchildTransform.cs" />
     <Compile Include="Reporting\DataTransform\Person\GrandparentTransform.cs" />
