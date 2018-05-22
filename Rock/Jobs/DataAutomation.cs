@@ -1149,12 +1149,15 @@ Update Family Status: {updateFamilyStatus}
             }
 
             int recordsUpdated = 0;
+            int recordsWithError = 0;
 
             context.UpdateLastStatusMessage( $"Processing Connection Status Update" );
 
             foreach ( var connectionStatusDataviewMapping in settings.ConnectionStatusValueIdDataviewIdMapping.Where( a => a.Value.HasValue ) )
             {
                 int connectionStatusValueId = connectionStatusDataviewMapping.Key;
+                var cacheConnectionStatusValue = CacheDefinedValue.Get( connectionStatusValueId );
+                context.UpdateLastStatusMessage( $"Processing Connection Status Update for {cacheConnectionStatusValue}" );
                 int dataViewId = connectionStatusDataviewMapping.Value.Value;
                 using ( var dataViewRockContext = new RockContext() )
                 {
@@ -1169,19 +1172,28 @@ Update Family Status: {updateFamilyStatus}
                             int totalToUpdate = personsToUpdate.Count();
                             foreach ( var person in personsToUpdate )
                             {
-                                using ( var updateRockContext = new RockContext() )
+                                try
                                 {
-                                    // Attach the person to the updateRockContext so that it'll be tracked/saved using updateRockContext 
-                                    updateRockContext.People.Attach( person );
-
-                                    recordsUpdated++;
-                                    person.ConnectionStatusValueId = connectionStatusValueId;
-                                    updateRockContext.SaveChanges();
-
-                                    if ( recordsUpdated % 100 == 0 )
+                                    using ( var updateRockContext = new RockContext() )
                                     {
-                                        context.UpdateLastStatusMessage( $"Processing Connection Status Update: {recordsUpdated:N0} of {totalToUpdate:N0}" );
+                                        // Attach the person to the updateRockContext so that it'll be tracked/saved using updateRockContext 
+                                        updateRockContext.People.Attach( person );
+
+                                        recordsUpdated++;
+                                        person.ConnectionStatusValueId = connectionStatusValueId;
+                                        updateRockContext.SaveChanges();
+
+                                        if ( recordsUpdated % 100 == 0 )
+                                        {
+                                            context.UpdateLastStatusMessage( $"Processing Connection Status Update for {cacheConnectionStatusValue}: {recordsUpdated:N0} of {totalToUpdate:N0}" );
+                                        }
                                     }
+                                }
+                                catch ( Exception ex )
+                                {
+                                    // log but don't throw
+                                    ExceptionLogService.LogException( new Exception( $"Exception occurred trying to update connection status for PersonId:{person.Id}.", ex ), _httpContext );
+                                    recordsWithError += 1;
                                 }
                             }
                         }
@@ -1190,7 +1202,13 @@ Update Family Status: {updateFamilyStatus}
             }
 
             // Format the result message
-            return $"{recordsUpdated:N0} person records were updated with new connection status.";
+            string result = $"{recordsUpdated:N0} person records were updated with new connection status.";
+            if ( recordsWithError > 0 )
+            {
+                result += " {recordsWithError:N0} records logged an exception.";
+            }
+
+            return result;
         }
 
         #endregion  Update Person Connection Status
