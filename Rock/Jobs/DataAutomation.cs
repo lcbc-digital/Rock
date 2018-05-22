@@ -1149,6 +1149,7 @@ Update Family Status: {updateFamilyStatus}
             }
 
             int recordsUpdated = 0;
+            int totalToUpdate = 0;
             int recordsWithError = 0;
 
             context.UpdateLastStatusMessage( $"Processing Connection Status Update" );
@@ -1169,7 +1170,7 @@ Update Family Status: {updateFamilyStatus}
                         if ( qryPersonsInDataView != null )
                         {
                             var personsToUpdate = qryPersonsInDataView.Where( a => a.ConnectionStatusValueId != connectionStatusValueId ).AsNoTracking().ToList();
-                            int totalToUpdate = personsToUpdate.Count();
+                            totalToUpdate += personsToUpdate.Count();
                             foreach ( var person in personsToUpdate )
                             {
                                 try
@@ -1229,6 +1230,7 @@ Update Family Status: {updateFamilyStatus}
             }
 
             int recordsUpdated = 0;
+            int totalToUpdate = 0;
 
             context.UpdateLastStatusMessage( $"Processing Family Status Update" );
 
@@ -1246,7 +1248,7 @@ Update Family Status: {updateFamilyStatus}
                         if ( qryGroupsInDataView != null )
                         {
                             var groupsToUpdate = qryGroupsInDataView.Where( a => a.StatusValueId != groupStatusValueId ).AsNoTracking().ToList();
-                            int totalToUpdate = groupsToUpdate.Count();
+                            totalToUpdate += groupsToUpdate.Count();
                             foreach ( var group in groupsToUpdate )
                             {
                                 using ( var updateRockContext = new RockContext() )
