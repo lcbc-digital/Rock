@@ -223,7 +223,7 @@ function() {
         public override Control[] CreateChildControls( Type entityType, FilterField parentControl )
         {
             // Define Control: Location Data View Picker
-            var ddlDataView = new DataViewPicker();
+            var ddlDataView = new DataViewItemPicker();
             ddlDataView.ID = parentControl.GetChildControlInstanceName( _CtlDataView );
             ddlDataView.Label = "Connected to Locations";
             ddlDataView.Help = "A Data View that provides the list of Locations to which the Person may be connected.";
@@ -265,7 +265,7 @@ function() {
         /// </returns>
         public override string GetSelection( Type entityType, Control[] controls )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
             var ddlLocationType = controls.GetByName<RockDropDownList>( _CtlLocationType );
 
             var settings = new FilterSettings();
@@ -285,7 +285,7 @@ function() {
         /// <param name="selection">The selection.</param>
         public override void SetSelection( Type entityType, Control[] controls, string selection )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
             var ddlLocationType = controls.GetByName<RockDropDownList>( _CtlLocationType );
 
             var settings = new FilterSettings( selection );
@@ -295,7 +295,7 @@ function() {
                 return;
             }
 
-            ddlDataView.SelectedValue = DataComponentSettingsHelper.GetDataViewId( settings.DataViewGuid ).ToStringSafe();
+            ddlDataView.SetValue( DataComponentSettingsHelper.GetDataViewId( settings.DataViewGuid ) );
             ddlLocationType.SelectedValue = settings.LocationTypeGuid.ToStringSafe();
         }
 

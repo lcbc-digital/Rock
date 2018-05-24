@@ -207,7 +207,7 @@ function ()
         public override Control[] CreateChildControls(Type entityType, FilterField filterControl)
         {
             // Define Control: Person Data View Picker
-            var ddlDataView = new DataViewPicker();
+            var ddlDataView = new DataViewItemPicker();
             ddlDataView.ID = filterControl.GetChildControlInstanceName(_CtlDataView);
             ddlDataView.Label = "Represents People from this Data View";
             ddlDataView.Help = "A Person Data View that represents the set of possible Prayer Requests.";
@@ -229,7 +229,7 @@ function ()
         /// </returns>
         public override string GetSelection(Type entityType, Control[] controls)
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>(_CtlDataView);
+            var ddlDataView = controls.GetByName<DataViewItemPicker>(_CtlDataView);
 
             var settings = new FilterSettings();
 
@@ -246,7 +246,7 @@ function ()
         /// <param name="selection">A formatted string representing the filter settings.</param>
         public override void SetSelection(Type entityType, Control[] controls, string selection)
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>(_CtlDataView);
+            var ddlDataView = controls.GetByName<DataViewItemPicker>(_CtlDataView);
 
             var settings = new FilterSettings(selection);
 
@@ -255,7 +255,7 @@ function ()
                 return;
             }
 
-            ddlDataView.SelectedValue = DataComponentSettingsHelper.GetDataViewId(settings.PersonDataViewGuid).ToStringSafe();
+            ddlDataView.SetValue( DataComponentSettingsHelper.GetDataViewId( settings.PersonDataViewGuid ) );
         }
 
         /// <summary>

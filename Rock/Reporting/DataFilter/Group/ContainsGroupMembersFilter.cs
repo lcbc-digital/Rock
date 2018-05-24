@@ -234,7 +234,7 @@ function ()
         public override Control[] CreateChildControls( Type entityType, FilterField filterControl )
         {
             // Define Control: Group Member Data View Picker
-            var ddlDataView = new DataViewPicker();
+            var ddlDataView = new DataViewItemPicker();
             ddlDataView.ID = filterControl.GetChildControlInstanceName( _CtlDataView );
             ddlDataView.Label = "Contains Group Members from this Data View";
             ddlDataView.Help = "A Group Member Data View that provides the set of possible Group Members.";
@@ -268,7 +268,7 @@ function ()
         /// <param name="controls">The model representation of the child controls for this component.</param>
         public override void RenderControls( Type entityType, FilterField filterControl, HtmlTextWriter writer, Control[] controls )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
             var ddlCompare = controls.GetByName<RockDropDownList>( _CtlComparison );
             var nbValue = controls.GetByName<NumberBox>( _CtlMemberCount );
 
@@ -305,7 +305,7 @@ function ()
         /// </returns>
         public override string GetSelection( Type entityType, Control[] controls )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
             var ddlCompare = controls.GetByName<RockDropDownList>( _CtlComparison );
             var nbValue = controls.GetByName<NumberBox>( _CtlMemberCount );
 
@@ -326,7 +326,7 @@ function ()
         /// <param name="selection">A formatted string representing the filter settings.</param>
         public override void SetSelection( Type entityType, Control[] controls, string selection )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
             var ddlCompare = controls.GetByName<RockDropDownList>( _CtlComparison );
             var nbValue = controls.GetByName<NumberBox>( _CtlMemberCount );
 
@@ -337,7 +337,7 @@ function ()
                 return;
             }
 
-            ddlDataView.SelectedValue = DataComponentSettingsHelper.GetDataViewId( settings.GroupMemberDataViewGuid ).ToStringSafe();
+            ddlDataView.SetValue( DataComponentSettingsHelper.GetDataViewId( settings.GroupMemberDataViewGuid ) );
             ddlCompare.SelectedValue = settings.MemberCountComparison.ConvertToInt().ToString();
             nbValue.Text = settings.MemberCount.ToString();
         }

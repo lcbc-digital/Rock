@@ -198,7 +198,7 @@ function() {
         public override Control[] CreateChildControls( Type entityType, FilterField filterControl )
         {
             // Define Control: History Data View Picker
-            var ddlDataView = new DataViewPicker();
+            var ddlDataView = new DataViewItemPicker();
             ddlDataView.ID = filterControl.GetChildControlInstanceName( _CtlDataView );
             ddlDataView.Label = "In User Login DataView";
             ddlDataView.Help = "A User Login Data View that provides the set of possible users.";
@@ -232,7 +232,7 @@ function() {
         /// <returns></returns>
         public override string GetSelection( Type entityType, Control[] controls )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
 
             var settings = new FilterSettings();
 
@@ -249,7 +249,7 @@ function() {
         /// <param name="selection">The selection.</param>
         public override void SetSelection( Type entityType, Control[] controls, string selection )
         {
-            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlDataView = controls.GetByName<DataViewItemPicker>( _CtlDataView );
 
             var settings = new FilterSettings( selection );
 
@@ -258,7 +258,7 @@ function() {
                 return;
             }
 
-            ddlDataView.SelectedValue = DataComponentSettingsHelper.GetDataViewId( settings.DataViewGuid ).ToStringSafe();
+            ddlDataView.SetValue( DataComponentSettingsHelper.GetDataViewId( settings.DataViewGuid ) );
         }
 
         /// <summary>

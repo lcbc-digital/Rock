@@ -241,7 +241,7 @@ namespace Rock.Reporting.DataSelect.Group
             // Define Control: Person Data View Picker
             int entityTypeId = CacheEntityType.Get( typeof( Rock.Model.Person ) ).Id;
 
-            var ddlDataView = new DataViewPicker();
+            var ddlDataView = new DataViewItemPicker();
             ddlDataView.ID = string.Format( "{0}_ddlDataView", parentControl.ID );
             ddlDataView.Label = "Candidate Data View";
             ddlDataView.Help = "The Data View that returns the set of people from which participation in the Group is measured.";
@@ -269,7 +269,7 @@ namespace Rock.Reporting.DataSelect.Group
         /// <returns></returns>
         public override string GetSelection( System.Web.UI.Control[] controls )
         {
-            var ddlDataView = (DataViewPicker)controls[0];
+            var ddlDataView = ( DataViewItemPicker ) controls[0];
             var ddlFormat = (DropDownList)controls[1];
 
             var settings = new ParticipationRateSelectSettings();
@@ -294,7 +294,7 @@ namespace Rock.Reporting.DataSelect.Group
                 return;
             }
 
-            var ddlDataView = (DataViewPicker)controls[0];
+            var ddlDataView = ( DataViewItemPicker ) controls[0];
             var ddlFormat = (DropDownList)controls[1];
 
             if ( settings.DataViewGuid.HasValue )
@@ -303,10 +303,7 @@ namespace Rock.Reporting.DataSelect.Group
 
                 var dataView = dsService.Get( settings.DataViewGuid.Value );
 
-                if ( dataView != null )
-                {
-                    ddlDataView.SelectedValue = dataView.Id.ToString();
-                }
+                ddlDataView.SetValue( dataView );
             }
 
             ddlFormat.SelectedValue = settings.MeasureType.ToString();
