@@ -194,30 +194,34 @@ namespace Rock.Cache
         /// <value>
         /// The entity type id.
         /// </value>
+		[DataMember]
         public int? EntityTypeId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the entity type qualifier column.
-        /// </summary>
-        /// <value>
-        /// The entity type qualifier column.
-        /// </value>
-        public string EntityTypeQualifierColumn { get; set; }
+		/// <summary>
+		/// Gets or sets the entity type qualifier column.
+		/// </summary>
+		/// <value>
+		/// The entity type qualifier column.
+		/// </value>
+		[DataMember]
+		public string EntityTypeQualifierColumn { get; set; }
 
-        /// <summary>
-        /// Gets or sets the entity type qualifier value.
-        /// </summary>
-        /// <value>
-        /// The entity type qualifier value.
-        /// </value>
-        public string EntityTypeQualifierValue { get; set; }
+		/// <summary>
+		/// Gets or sets the entity type qualifier value.
+		/// </summary>
+		/// <value>
+		/// The entity type qualifier value.
+		/// </value>
+		[DataMember]
+		public string EntityTypeQualifierValue { get; set; }
 
-        /// <summary>
-        /// Gets or sets the attribute ids.
-        /// </summary>
-        /// <value>
-        /// The attribute ids.
-        /// </value>
-        public List<int> AttributeIds { get; set; }
+		/// <summary>
+		/// Gets or sets the attribute ids.
+		/// </summary>
+		/// <value>
+		/// The attribute ids.
+		/// </value>
+		[DataMember]
+		public List<int> AttributeIds { get; set; }
     }
 }

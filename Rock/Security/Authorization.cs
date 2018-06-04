@@ -25,6 +25,7 @@ using System.Web.Security;
 using Rock.Data;
 using Rock.Model;
 using Rock.Cache;
+using System.Runtime.Serialization;
 
 namespace Rock.Security
 {
@@ -1284,72 +1285,82 @@ namespace Rock.Security
     /// <summary>
     /// Lightweight struct to store if a particular user or role is allowed or denied access
     /// </summary>
+	[Serializable]
+	[DataContract]
     public struct AuthRule
     {
 
-        /// <summary>
-        /// Gets or sets the id.
-        /// </summary>
-        /// <value>
-        /// The id.
-        /// </value>
-        public int Id { get; set; }
+		/// <summary>
+		/// Gets or sets the id.
+		/// </summary>
+		/// <value>
+		/// The id.
+		/// </value>
+		[DataMember]
+		public int Id { get; set; }
 
-        /// <summary>
-        /// Gets or sets the entity id.
-        /// </summary>
-        /// <value>
-        /// The entity id.
-        /// </value>
-        public int? EntityId { get; set; }
+		/// <summary>
+		/// Gets or sets the entity id.
+		/// </summary>
+		/// <value>
+		/// The entity id.
+		/// </value>
+		[DataMember]
+		public int? EntityId { get; set; }
 
-        /// <summary>
-        /// Gets or sets a value indicating if this is an allow or deny rule.  Acceptable values are "A" or "D".
-        /// </summary>
-        /// <value>
-        /// The allow or deny.
-        /// </value>
-        public char AllowOrDeny { get; set; }
+		/// <summary>
+		/// Gets or sets a value indicating if this is an allow or deny rule.  Acceptable values are "A" or "D".
+		/// </summary>
+		/// <value>
+		/// The allow or deny.
+		/// </value>
+		[DataMember]
+		public char AllowOrDeny { get; set; }
 
-        /// <summary>
-        /// Gets or sets the special role.
-        /// </summary>
-        /// <value>
-        /// The special role.
-        /// </value>
-        public SpecialRole SpecialRole { get; set; }
+		/// <summary>
+		/// Gets or sets the special role.
+		/// </summary>
+		/// <value>
+		/// The special role.
+		/// </value>
+		[DataMember]
+		public SpecialRole SpecialRole { get; set; }
 
-        /// <summary>
-        /// Gets or sets the person identifier.
-        /// </summary>
-        /// <value>
-        /// The person identifier.
-        /// </value>
-        public int? PersonId { get; set; }
+		/// <summary>
+		/// Gets or sets the person identifier.
+		/// </summary>
+		/// <value>
+		/// The person identifier.
+		/// </value>
+		[DataMember]
+		public int? PersonId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the person alias identifier.
-        /// </summary>
-        /// <value>
-        /// The person alias identifier.
-        /// </value>
-        public int? PersonAliasId { get; set; }
+		/// <summary>
+		/// Gets or sets the person alias identifier.
+		/// </summary>
+		/// <value>
+		/// The person alias identifier.
+		/// </value>
+		[DataMember]
+		public int? PersonAliasId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the group id.
-        /// </summary>
-        /// <value>
-        /// The group id.
-        /// </value>
-        public int? GroupId { get; set; }
+		/// <summary>
+		/// Gets or sets the group id.
+		/// </summary>
+		/// <value>
+		/// The group id.
+		/// </value>
+		[DataMember]
+		public int? GroupId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the order.
-        /// </summary>
-        /// <value>
-        /// The order.
-        /// </value>
-        public int Order { get; set; }
+		/// <summary>
+		/// Gets or sets the order.
+		/// </summary>
+		/// <value>
+		/// The order.
+		/// </value>
+		[DataMember]
+		public int Order { get; set; }
 
         /// <summary>
         /// Gets the display name.

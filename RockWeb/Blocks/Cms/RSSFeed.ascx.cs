@@ -19,7 +19,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using System.ServiceModel.Syndication;
-using System.Runtime.Caching;
 using System.Web.UI;
 
 using DotLiquid;
@@ -96,18 +95,14 @@ namespace RockWeb.Blocks.Cms
         private void ClearCache()
         {
             SyndicationFeedHelper.ClearCachedFeed( GetAttributeValue( "RSSFeedUrl" ) );
-            RockCache.Remove( TemplateCacheKey );
+			CacheLavaTemplate.Remove( TemplateCacheKey );
         }
 
-        private Template GetTemplate()
-        {
-            return RockCache.GetOrAddExisting( TemplateCacheKey, () => LoadTemplate() ) as Template;
-        }
-
-        private Template LoadTemplate()
-        {
-            return Template.Parse( GetAttributeValue( "Template" ) );
-        }
+		private Template GetTemplate()
+		{
+			var cacheTemplate = CacheLavaTemplate.Get( TemplateCacheKey, GetAttributeValue( "Template" ) );
+			return cacheTemplate != null ? cacheTemplate.Template : null;
+		}
 
         private string LoadDebugData( Dictionary<string, object> feedDictionary )
         {

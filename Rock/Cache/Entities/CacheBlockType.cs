@@ -203,9 +203,11 @@ namespace Rock.Cache
             return Name;
         }
 
-        #endregion
+		#endregion
 
-        private void FileSystemWatcher_OnRenamed(object sender, RenamedEventArgs renamedEventArgs)
+		#region File Watcher Events
+
+		private void FileSystemWatcher_OnRenamed(object sender, RenamedEventArgs renamedEventArgs)
         {
             Remove( Id );
         }
@@ -215,6 +217,7 @@ namespace Rock.Cache
             Remove( Id );
         }
 
+		#endregion
 
-    }
+	}
 }

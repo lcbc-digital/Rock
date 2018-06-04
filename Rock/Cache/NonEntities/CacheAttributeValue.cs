@@ -14,15 +14,20 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
+using System.Runtime.Serialization;
+
 using Rock.Data;
 using Rock.Model;
 
 namespace Rock.Cache
 {
-    /// <summary>
-    /// 
-    /// </summary>
-    [DotLiquid.LiquidType( "AttributeId", "EntityId", "Value", "ValueFormatted", "AttributeName", "AttributeKey", "AttributeIsGridColumn" )]
+	/// <summary>
+	/// 
+	/// </summary>
+	[Serializable]
+	[DataContract]
+	[DotLiquid.LiquidType( "AttributeId", "EntityId", "Value", "ValueFormatted", "AttributeName", "AttributeKey", "AttributeIsGridColumn" )]
     public class CacheAttributeValue
     {
         #region constructors
@@ -45,33 +50,36 @@ namespace Rock.Cache
             EntityId = model.EntityId;
         }
 
-        #endregion
+		#endregion
 
-        #region Properties
+		#region Properties
 
-        /// <summary>
-        /// Gets or sets the attribute identifier.
-        /// </summary>
-        /// <value>
-        /// The attribute identifier.
-        /// </value>
-        public int AttributeId { get; set; }
+		/// <summary>
+		/// Gets or sets the attribute identifier.
+		/// </summary>
+		/// <value>
+		/// The attribute identifier.
+		/// </value>
+		[DataMember]
+		public int AttributeId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the entity identifier.
-        /// </summary>
-        /// <value>
-        /// The entity identifier.
-        /// </value>
-        public int? EntityId { get; set; }
+		/// <summary>
+		/// Gets or sets the entity identifier.
+		/// </summary>
+		/// <value>
+		/// The entity identifier.
+		/// </value>
+		[DataMember]
+		public int? EntityId { get; set; }
 
-        /// <summary>
-        /// Gets or sets the value.
-        /// </summary>
-        /// <value>
-        /// The value.
-        /// </value>
-        public string Value { get; set; }
+		/// <summary>
+		/// Gets or sets the value.
+		/// </summary>
+		/// <value>
+		/// The value.
+		/// </value>
+		[DataMember]
+		public string Value { get; set; }
 
         /// <summary>
         /// Gets the value using the most appropriate datatype

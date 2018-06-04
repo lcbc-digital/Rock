@@ -99,8 +99,9 @@ namespace Rock.Cache
         /// <returns></returns>
         private static ICacheManagerConfiguration GetCacheConfig()
         {
-            // Configure Cache
-            var config = new ConfigurationBuilder( "InProcess With Redis Backplane" )
+			// Configure Cache
+			var config = new ConfigurationBuilder( "InProcess With Redis Backplane" )
+				//.WithJsonSerializer()
                 //.WithSystemRuntimeCacheHandle( "inProcessCache" )
                 .WithDictionaryHandle()
                 //.And
@@ -118,7 +119,7 @@ namespace Rock.Cache
                 .Build();
 
             return config;
-        }
+		}
 
         /// <summary>
         /// Adds or updates an item in cache

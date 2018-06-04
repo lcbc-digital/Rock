@@ -14,29 +14,30 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+
 using DotLiquid;
-using DotLiquid.Exceptions;
-using Rock.Data;
-using System.Dynamic;
-using Rock.Cache;
 using DotLiquid.Util;
+
+using Rock.Cache;
 
 namespace Rock.Lava.Blocks
 {
-    /// <summary>
-    /// Cache allows you to cache the results of a Lava template.
-    /// 
-    /// {% cache key:'my-content' %}
-    ///     My Lava is now fast!
-    /// {% endcache %}
-    /// </summary>
-    public class Cache : RockLavaBlockBase
+	/// <summary>
+	/// Cache allows you to cache the results of a Lava template.
+	/// 
+	/// {% cache key:'my-content' %}
+	///     My Lava is now fast!
+	/// {% endcache %}
+	/// </summary>
+	public class Cache : RockLavaBlockBase
     {
         private static readonly Regex Syntax = new Regex( @"(\w+)" );
 
@@ -240,6 +241,8 @@ namespace Rock.Lava.Blocks
         /// <summary>
         /// Cace
         /// </summary>
+		[Serializable]
+		[DataContract]
         private class CacheLavaTag
         {
             /// <summary>
@@ -248,13 +251,16 @@ namespace Rock.Lava.Blocks
             /// <value>
             /// The hash.
             /// </value>
+			[DataMember]
             public int Hash { get; set; }
+
             /// <summary>
             /// Gets or sets the lava.
             /// </summary>
             /// <value>
             /// The lava.
             /// </value>
+			[DataMember]
             public string Content { get; set; }
         }
 

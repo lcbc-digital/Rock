@@ -18,16 +18,18 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 
 using Rock.Data;
 
 namespace Rock.Cache
 {
-    /// <summary>
-    /// Information about a Role that is required by the rendering engine.
-    /// This information will be cached by the engine
-    /// </summary>
-    public class CacheRole : ItemCache<CacheRole>
+	/// <summary>
+	/// Information about a Role that is required by the rendering engine.
+	/// This information will be cached by the engine
+	/// </summary>
+	[DataContract]
+	public class CacheRole : ItemCache<CacheRole>
     {
         #region Constructors
 
@@ -43,28 +45,32 @@ namespace Rock.Cache
         /// <summary>
         /// Gets the id.
         /// </summary>
+		[DataMember]
         public int Id { get; private set; }
 
-        /// <summary>
-        /// Gets the name.
-        /// </summary>
-        public string Name { get; private set; }
+		/// <summary>
+		/// Gets the name.
+		/// </summary>
+		[DataMember]
+		public string Name { get; private set; }
 
-        /// <summary>
-        /// Gets a value indicating whether this instance is security type group.
-        /// </summary>
-        /// <value>
-        /// <c>true</c> if this instance is security type group; otherwise, <c>false</c>.
-        /// </value>
-        public bool IsSecurityTypeGroup { get; private set; }
+		/// <summary>
+		/// Gets a value indicating whether this instance is security type group.
+		/// </summary>
+		/// <value>
+		/// <c>true</c> if this instance is security type group; otherwise, <c>false</c>.
+		/// </value>
+		[DataMember]
+		public bool IsSecurityTypeGroup { get; private set; }
 
-        /// <summary>
-        /// Gets the people.
-        /// </summary>
-        /// <value>
-        /// The people.
-        /// </value>
-        public ConcurrentDictionary<Guid, bool> People { get; private set; }
+		/// <summary>
+		/// Gets the people.
+		/// </summary>
+		/// <value>
+		/// The people.
+		/// </value>
+		[DataMember]
+		public ConcurrentDictionary<Guid, bool> People { get; private set; } = new ConcurrentDictionary<Guid, bool>();
 
         /// <summary>
         /// Is user in role

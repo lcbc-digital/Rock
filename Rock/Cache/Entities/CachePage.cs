@@ -420,44 +420,49 @@ namespace Rock.Cache
         }
         private List<int> _blockIds;
 
-        /// <summary>
-        /// Gets or sets the page contexts that have been defined for the page
-        /// </summary>
-        /// <value>
-        /// The page contexts.
-        /// </value>
-        [DataMember]
-        public Dictionary<string, string> PageContexts { get; private set; }
+		/// <summary>
+		/// Gets or sets the page contexts that have been defined for the page
+		/// </summary>
+		/// <value>
+		/// The page contexts.
+		/// </value>
+		[DataMember]
+		public Dictionary<string, string> PageContexts { get; private set; } = new Dictionary<string, string>();
 
         /// <summary>
         /// Helper class for PageRoute information
         /// </summary>
+		[Serializable]
+		[DataContract]
         public class PageRouteInfo
         {
             /// <summary>
             /// The id
             /// </summary>
+			[DataMember]
             public int Id { get; internal set; }
 
-            /// <summary>
-            /// The GUID
-            /// </summary>
-            public Guid Guid { get; internal set; }
+			/// <summary>
+			/// The GUID
+			/// </summary>
+			[DataMember]
+			public Guid Guid { get; internal set; }
 
-            /// <summary>
-            /// The route
-            /// </summary>
-            public string Route { get; internal set; }
+			/// <summary>
+			/// The route
+			/// </summary>
+			[DataMember]
+			public string Route { get; internal set; }
         }
 
-        /// <summary>
-        /// Gets or sets the page routes.
-        /// </summary>
-        /// <value>
-        /// The page routes.
-        /// </value>
-        [DataMember]
-        public List<PageRouteInfo> PageRoutes { get; private set; }
+		/// <summary>
+		/// Gets or sets the page routes.
+		/// </summary>
+		/// <value>
+		/// The page routes.
+		/// </value>
+		[DataMember]
+		public List<PageRouteInfo> PageRoutes { get; private set; } = new List<PageRouteInfo>();
 
         /// <summary>
         /// Gets the parent authority.

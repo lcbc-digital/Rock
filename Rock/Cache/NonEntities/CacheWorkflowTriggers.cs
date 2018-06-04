@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
@@ -24,10 +25,12 @@ using Rock.Model;
 
 namespace Rock.Cache
 {
-    /// <summary>
-    /// MEF Container class for WorkflowAction Componenets
-    /// </summary>
-    public class CacheWorkflowTriggers : ItemCache<CacheWorkflowTriggers>
+	/// <summary>
+	/// MEF Container class for WorkflowAction Componenets
+	/// </summary>
+	[Serializable]
+	[DataContract]
+	public class CacheWorkflowTriggers : ItemCache<CacheWorkflowTriggers>
     {
         private const string KEY = "AllWorkflowTriggers";
 

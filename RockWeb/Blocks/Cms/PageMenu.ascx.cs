@@ -19,23 +19,22 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.Caching;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Web.UI;
+
 using DotLiquid;
+
 using Rock;
 using Rock.Attribute;
-using Rock.Data;
-using Rock.Security;
 using Rock.Cache;
+using Rock.Data;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
 
 
 namespace RockWeb.Blocks.Cms
 {
-    [DisplayName("Page Menu")]
+	[DisplayName("Page Menu")]
     [Category("CMS")]
     [Description("Renders a page menu based on a root page and liquid template.")]
     [CodeEditorField( "Template", "The liquid template to use for rendering. This template would typically be in the theme's \"Assets/Lava\" folder.",
@@ -86,7 +85,7 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void PageMenu_BlockUpdated( object sender, EventArgs e )
         {
-            RockCache.Remove( CacheKey() );
+			CacheLavaTemplate.Remove( CacheKey() );
         }
 
         private void Render()
@@ -181,13 +180,8 @@ namespace RockWeb.Blocks.Cms
 
         private Template GetTemplate()
         {
-            string cacheKey = CacheKey();
-            return RockCache.GetOrAddExisting( cacheKey, () => ParseTemplate() ) as Template;
-        }
-
-        private Template ParseTemplate()
-        {
-            return Template.Parse( GetAttributeValue( "Template" ) );
+			var cacheTemplate = CacheLavaTemplate.Get( CacheKey(), GetAttributeValue( "Template" ) );
+			return cacheTemplate != null ? cacheTemplate.Template : null;
         }
 
         /// <summary>

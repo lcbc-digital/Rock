@@ -375,13 +375,14 @@ namespace Rock.Cache
         [DataMember]
         public bool RedirectTablets { get; private set; }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether page views will be stored in the Interaction tables
-        /// </summary>
-        /// <value>
-        ///   <c>true</c> if [enable page views]; otherwise, <c>false</c>.
-        /// </value>
-        public bool EnablePageViews { get; private set; }
+		/// <summary>
+		/// Gets or sets a value indicating whether page views will be stored in the Interaction tables
+		/// </summary>
+		/// <value>
+		///   <c>true</c> if [enable page views]; otherwise, <c>false</c>.
+		/// </value>
+		[DataMember]
+		public bool EnablePageViews { get; private set; }
 
         /// <summary>
         /// Gets or sets the content of the page header.
@@ -470,6 +471,7 @@ namespace Rock.Cache
         /// </value>
         [DataMember]
         public Uri DefaultDomainUri { get; private set; }
+
         #endregion
 
         #region Public Methods

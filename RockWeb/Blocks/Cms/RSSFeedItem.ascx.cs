@@ -103,12 +103,8 @@ namespace RockWeb.Blocks.Cms
 
         private Template GetTemplate()
         {
-            return RockCache.GetOrAddExisting( TemplateCacheKey, () => LoadTemplate() ) as Template;
-        }
-
-        private Template LoadTemplate()
-        {
-            return Template.Parse( GetAttributeValue( "Template" ) );
+			var cacheTemplate = CacheLavaTemplate.Get( TemplateCacheKey, GetAttributeValue( "Template" ) );
+			return cacheTemplate != null ? cacheTemplate.Template : null;
         }
 
         private string LoadDebugData( Dictionary<string, object> feedDictionary )

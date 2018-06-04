@@ -282,7 +282,7 @@ namespace RockWeb.Blocks.Utility
                 if ( cacheDuration > 0 && _currentPage == 0 )
                 {
                     var cachedData = new CachedBlockData();
-                    cachedData.ContentChannelItem = contentChannelItem;
+					cachedData.ContentChannelItem = contentChannelItem.Clone( false );
                     cachedData.ShowPrev = showPrev;
                     cachedData.Metrics = metrics;
 
@@ -316,6 +316,7 @@ namespace RockWeb.Blocks.Utility
         /// <summary>
         /// Class to hold data for caching
         /// </summary>
+		[Serializable]
         protected class CachedBlockData
         {
             /// <summary>
@@ -344,6 +345,7 @@ namespace RockWeb.Blocks.Utility
         /// <summary>
         /// Result class for metrics
         /// </summary>
+		[Serializable]
         protected class MetricResult : Drop {
             /// <summary>
             /// Gets or sets the identifier.
@@ -406,6 +408,7 @@ namespace RockWeb.Blocks.Utility
         /// <summary>
         /// Result class for metric values
         /// </summary>
+		[Serializable]
         protected class MetricValue : Drop
         {
             /// <summary>

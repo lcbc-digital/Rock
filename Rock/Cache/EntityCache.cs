@@ -224,7 +224,7 @@ namespace Rock.Cache
             if ( cachedKeys == null) return new List<T>();
 
             var allValues = new List<T>();
-            foreach ( var key in cachedKeys )
+            foreach ( var key in cachedKeys.ToList() )
             {
                 var value = Get( key.AsInteger() );
                 if ( value != null )

@@ -105,16 +105,39 @@ namespace Rock.Cache
             return JsonConvert.SerializeObject( this, Formatting.None, jsonSerializerSettings );
         }
 
-        #endregion
+		#endregion
 
-        #region Public Static Methods
+		#region Public Static Properties
 
-        /// <summary>
-        /// Gets an item from cache using the specified key.
-        /// </summary>
-        /// <param name="key">The key.</param>
-        /// <returns></returns>
-        public static object Get( string key )
+		/// <summary>
+		/// Gets an indicator of whether cache manager is configured in a way that items will be serialized (i.e. if using Redis)
+		/// </summary>
+		/// <value>
+		/// Flag indicating if cache items are serialized
+		/// </value>
+		public static bool IsCacheSerialized
+		{
+			get
+			{
+				if ( Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.REDIS_ENABLE_CACHE_CLUSTER ).IsNullOrWhiteSpace() ? false : true )
+				{
+					return true;
+				}
+
+				return true; //false;
+			}
+		}
+
+		#endregion
+
+		#region Public Static Methods
+
+		/// <summary>
+		/// Gets an item from cache using the specified key.
+		/// </summary>
+		/// <param name="key">The key.</param>
+		/// <returns></returns>
+		public static object Get( string key )
         {
             return Get( key, null );
         }

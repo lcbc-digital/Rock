@@ -236,30 +236,36 @@ namespace Rock.Cache
         /// <summary>
         /// Special class for adding service times as available liquid fields
         /// </summary>
-        [DotLiquid.LiquidType( "Day", "Time" )]
+		[Serializable]
+		[DataContract]
+		[DotLiquid.LiquidType( "Day", "Time" )]
         public class ServiceTime
         {
-            /// <summary>
-            /// Gets or sets the day.
-            /// </summary>
-            /// <value>
-            /// The day.
-            /// </value>
-            public string Day { get; internal set; }
+			/// <summary>
+			/// Gets or sets the day.
+			/// </summary>
+			/// <value>
+			/// The day.
+			/// </value>
+			[DataMember]
+			public string Day { get; internal set; }
 
-            /// <summary>
-            /// Gets or sets the time.
-            /// </summary>
-            /// <value>
-            /// The time.
-            /// </value>
-            public string Time { get; internal set; }
+			/// <summary>
+			/// Gets or sets the time.
+			/// </summary>
+			/// <value>
+			/// The time.
+			/// </value>
+			[DataMember]
+			public string Time { get; internal set; }
         }
 
-        /// <summary>
-        /// Special class for adding location info as available liquid fields
-        /// </summary>
-        [DotLiquid.LiquidType( "Street1", "Street2", "City", "State", "PostalCode", "Country", "Latitude", "Longitude", "ImageUrl" )]
+		/// <summary>
+		/// Special class for adding location info as available liquid fields
+		/// </summary>
+		[Serializable]
+		[DataContract]
+		[DotLiquid.LiquidType( "Street1", "Street2", "City", "State", "PostalCode", "Country", "Latitude", "Longitude", "ImageUrl" )]
         public class CampusLocation
         {
             /// <summary>
@@ -268,71 +274,80 @@ namespace Rock.Cache
             /// <value>
             /// The street1.
             /// </value>
+			[DataMember]
             public string Street1 { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the street2.
-            /// </summary>
-            /// <value>
-            /// The street2.
-            /// </value>
-            public string Street2 { get; private set; }
+			/// <summary>
+			/// Gets or sets the street2.
+			/// </summary>
+			/// <value>
+			/// The street2.
+			/// </value>
+			[DataMember]
+			public string Street2 { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the city.
-            /// </summary>
-            /// <value>
-            /// The city.
-            /// </value>
-            public string City { get; private set; }
+			/// <summary>
+			/// Gets or sets the city.
+			/// </summary>
+			/// <value>
+			/// The city.
+			/// </value>
+			[DataMember]
+			public string City { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the state.
-            /// </summary>
-            /// <value>
-            /// The state.
-            /// </value>
-            public string State { get; private set; }
+			/// <summary>
+			/// Gets or sets the state.
+			/// </summary>
+			/// <value>
+			/// The state.
+			/// </value>
+			[DataMember]
+			public string State { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the postal code.
-            /// </summary>
-            /// <value>
-            /// The postal code.
-            /// </value>
-            public string PostalCode { get; private set; }
+			/// <summary>
+			/// Gets or sets the postal code.
+			/// </summary>
+			/// <value>
+			/// The postal code.
+			/// </value>
+			[DataMember]
+			public string PostalCode { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the country.
-            /// </summary>
-            /// <value>
-            /// The country.
-            /// </value>
-            public string Country { get; private set; }
+			/// <summary>
+			/// Gets or sets the country.
+			/// </summary>
+			/// <value>
+			/// The country.
+			/// </value>
+			[DataMember]
+			public string Country { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the latitude.
-            /// </summary>
-            /// <value>
-            /// The latitude.
-            /// </value>
-            public double? Latitude { get; private set; }
+			/// <summary>
+			/// Gets or sets the latitude.
+			/// </summary>
+			/// <value>
+			/// The latitude.
+			/// </value>
+			[DataMember]
+			public double? Latitude { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the longitude.
-            /// </summary>
-            /// <value>
-            /// The longitude.
-            /// </value>
-            public double? Longitude { get; private set; }
+			/// <summary>
+			/// Gets or sets the longitude.
+			/// </summary>
+			/// <value>
+			/// The longitude.
+			/// </value>
+			[DataMember]
+			public double? Longitude { get; private set; }
 
-            /// <summary>
-            /// Gets or sets the URL for the image.
-            /// </summary>
-            /// <value>
-            /// The image url.
-            /// </value>
-            public string ImageUrl { get; private set; }
+			/// <summary>
+			/// Gets or sets the URL for the image.
+			/// </summary>
+			/// <value>
+			/// The image url.
+			/// </value>
+			[DataMember]
+			public string ImageUrl { get; private set; }
 
             /// <summary>
             /// Initializes a new instance of the <see cref="CampusLocation"/> class.

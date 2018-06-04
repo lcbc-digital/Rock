@@ -37,9 +37,15 @@ namespace Rock.Cache
         // This is intentional behaviour in this case.
         private static readonly object _obj = new object();
 
-        private static string AllKey => $"{typeof( T ).Name}";
+		private static readonly string KeyPrefix = $"{typeof( T ).Name}";
+		private static string AllKey =>  $"{typeof( T ).Name}:All";
 
         #region Protected Methods
+
+		protected static string QualifiedKey( string key )
+		{
+			return $"{KeyPrefix}:{key}";
+		}
 
         /// <summary>
         /// Gets an item from cache, and if not found, executes the itemFactory to create item and add to cache.
@@ -84,7 +90,9 @@ namespace Rock.Cache
         /// <returns></returns>
         protected static T GetOrAddExisting( string key, Func<T> itemFactory, TimeSpan expiration )
         {
-            var value = RockCacheManager<T>.Instance.Cache.Get( key );
+			string qualifiedKey = QualifiedKey( key );
+
+			var value = RockCacheManager<T>.Instance.Cache.Get( qualifiedKey );
 
             RockCache.UpdateCacheHitMiss( key, value != null );
 
@@ -112,15 +120,17 @@ namespace Rock.Cache
         /// <param name="expiration">The expiration.</param>
         protected static void UpdateCacheItem( string key, T item, TimeSpan expiration )
         {
-            // Add the item to cache
-            RockCacheManager<T>.Instance.AddOrUpdate( key, item, expiration );
+			string qualifiedKey = QualifiedKey( key );
+
+			// Add the item to cache
+			RockCacheManager<T>.Instance.AddOrUpdate( qualifiedKey, item, expiration );
 
             // Do any postcache processing that this item cache type may need to do
             item.PostCached();
 
             // Get the dictionary of all item ids
             var allKeys = RockCacheManager<List<string>>.Instance.Cache.Get( AllKey, _AllRegion ) ?? new List<string>();
-            if (allKeys.Contains (key) ) return;
+            if (allKeys.Contains ( key ) ) return;
 
             // If the key is not part of the dictionary all ready
             lock (_obj)
@@ -205,14 +215,16 @@ namespace Rock.Cache
         /// <param name="key">The key.</param>
         public static void Remove( string key )
         {
-            RockCacheManager<T>.Instance.Cache.Remove( key );
+			var qualifiedKey = QualifiedKey( key );
+
+			RockCacheManager<T>.Instance.Cache.Remove( qualifiedKey );
 
             var allIds = RockCacheManager<List<string>>.Instance.Cache.Get( AllKey, _AllRegion ) ?? new List<string>();
-            if ( !allIds.Contains( key ) ) return;
+            if ( !allIds.Contains( qualifiedKey ) ) return;
 
             lock (_obj)
             {
-                allIds.Remove(key);
+                allIds.Remove( qualifiedKey );
                 RockCacheManager<List<string>>.Instance.AddOrUpdate(AllKey, _AllRegion, allIds);
             }
         }

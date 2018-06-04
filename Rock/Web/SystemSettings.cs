@@ -17,18 +17,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Caching;
+using System.Runtime.Serialization;
+
+using Rock.Cache;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
-using Rock.Cache;
 
 namespace Rock.Web
 {
-    /// <summary>
-    /// System Settings can be used to persist a key/value 
-    /// </summary>
-    [Serializable]
+	/// <summary>
+	/// System Settings can be used to persist a key/value 
+	/// </summary>
+	[Serializable]
+	[DataContract]
     public class SystemSettings
     {
         #region Constructors
@@ -39,6 +41,7 @@ namespace Rock.Web
 
         #region Properties
 
+		[DataMember]
         private List<CacheAttribute> Attributes { get; set; }
 
         #endregion

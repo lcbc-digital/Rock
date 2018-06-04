@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Web;
 
 using Rock.Data;
@@ -33,6 +34,7 @@ namespace Rock.Cache
     /// This information will be cached by the engine
     /// </summary>
     [Serializable]
+	[DataContract]
     public class CacheGlobalAttributes : ItemCache<CacheGlobalAttributes>
     {
         #region Contants
@@ -80,6 +82,7 @@ namespace Rock.Cache
         /// <value>
         /// The attributes.
         /// </value>
+		[DataMember]
         public List<CacheAttribute> Attributes
         {
             get
@@ -131,21 +134,23 @@ namespace Rock.Cache
         }
         private List<int> _attributeIds;
 
-        /// <summary>
-        /// Gets or sets the attribute values.
-        /// </summary>
-        /// <value>
-        /// The attribute values.
-        /// </value>
-        private ConcurrentDictionary<string, string> AttributeValues { get; set; }
+		/// <summary>
+		/// Gets or sets the attribute values.
+		/// </summary>
+		/// <value>
+		/// The attribute values.
+		/// </value>
+		[DataMember]
+		private ConcurrentDictionary<string, string> AttributeValues { get; set; } = new ConcurrentDictionary<string, string>();
 
-        /// <summary>
-        /// Gets or sets the attribute values formatted.
-        /// </summary>
-        /// <value>
-        /// The attribute values formatted.
-        /// </value>
-        private ConcurrentDictionary<string, string> AttributeValuesFormatted { get; set; }
+		/// <summary>
+		/// Gets or sets the attribute values formatted.
+		/// </summary>
+		/// <value>
+		/// The attribute values formatted.
+		/// </value>
+		[DataMember]
+		private ConcurrentDictionary<string, string> AttributeValuesFormatted { get; set; } = new ConcurrentDictionary<string, string>();
 
         #endregion
 
@@ -170,10 +175,11 @@ namespace Rock.Cache
         public string GetValue( string key, RockContext rockContext )
         {
             string value;
-            if ( AttributeValues.TryGetValue( key, out value ) )
-            {
-                return value;
-            }
+
+			if ( AttributeValues.TryGetValue( key, out value ) )
+			{
+				return value;
+			}
 
             var attributeCache = Attributes.FirstOrDefault( a => a.Key.Equals( key, StringComparison.OrdinalIgnoreCase ) );
             if (attributeCache == null) return string.Empty;
