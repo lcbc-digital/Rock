@@ -55,9 +55,8 @@ namespace Rock.Reporting.DataFilter
         /// </value>
         public override string GetClientFormatSelection( Type entityType )
         {
-            return "'Not Included in ' + " +
-                "'\\'' + $('select:first', $content).find(':selected').text() + '\\' ' + " +
-                "'Data View'";
+            var title = "Not Included In Data View:";
+            return $@"Rock.reporting.formatFilterForOtherDataViewFilter('{title}', $content)";
         }
 
         /// <summary>

@@ -469,7 +469,9 @@ namespace Rock.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="DataViewFilterOverrides"/> class.
         /// </summary>
-        public DataViewFilterOverrides() : base() { }
+        public DataViewFilterOverrides() : base()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DataViewFilterOverrides"/> class.
@@ -480,13 +482,12 @@ namespace Rock.Model
         { }
 
         /// <summary>
-        /// Gets or sets a value indicating whether [use persisted values if available] (default true)
-        /// Set this to false to prevent the Query from using the PersistedValues instead of the normal filter
+        /// List of DataViewIds that should not use Persisted Values
         /// </summary>
         /// <value>
-        ///   <c>true</c> if [use persisted values if available]; otherwise, <c>false</c>.
+        /// The ignore data view persisted values.
         /// </value>
-        public bool UsePersistedValuesIfAvailable { get; set; } = true;
+        public HashSet<int> IgnoreDataViewPersistedValues { get; set; } = new HashSet<int>();
 
         /// <summary>
         /// Gets the override.
