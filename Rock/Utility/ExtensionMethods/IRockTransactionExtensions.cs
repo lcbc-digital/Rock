@@ -14,22 +14,19 @@
 // limitations under the License.
 // </copyright>
 //
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Rock.Transactions;
 
-namespace Rock.SystemGuid
+namespace Rock
 {
-    /// <summary>
-    /// System Workflow Type Guids
-    /// </summary>
-    public class WorkflowType
+    public static partial class ExtensionMethods
     {
         /// <summary>
-        /// The Protect My Ministry workflow action.
+        /// Adds the ITransaction to the Rock TransactionQueue
         /// </summary>
-        public static readonly string PROTECTMYMINISTRY = "16D12EF7-C546-4039-9036-B73D118EDC90";
+        /// <param name="transaction">The transaction.</param>
+        public static void Enqueue( this ITransaction transaction )
+        {
+            RockQueue.TransactionQueue.Enqueue( transaction );
+        }
     }
 }
