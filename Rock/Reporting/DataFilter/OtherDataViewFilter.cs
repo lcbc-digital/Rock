@@ -215,7 +215,7 @@ namespace Rock.Reporting.DataFilter
         /// <summary>
         /// 
         /// </summary>
-        private class SelectionConfig
+        protected class SelectionConfig
         {
             /// <summary>
             /// Gets or sets the data view identifier.

@@ -68,8 +68,9 @@ namespace Rock.Reporting.DataFilter
         public override string FormatSelection( Type entityType, string selection )
         {
             string s = "Not In Another Data View";
+            var selectionConfig = SelectionConfig.Parse( selection );
 
-            int? dataviewId = selection.AsIntegerOrNull();
+            int? dataviewId = selectionConfig.DataViewId;
             if ( dataviewId.HasValue )
             {
                 var dataView = new DataViewService( new RockContext() ).Get( dataviewId.Value );

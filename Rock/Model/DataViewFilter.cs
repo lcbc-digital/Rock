@@ -464,6 +464,7 @@ namespace Rock.Model
     /// <summary>
     /// DataViewFilterOverrides with a Dictionary of Filter Overrides where the Key is the DataViewFilter.Guid
     /// </summary>
+    [System.Diagnostics.DebuggerDisplay( "{DebuggerDisplay}" )]
     public class DataViewFilterOverrides : Dictionary<Guid, DataViewFilterOverride>
     {
         /// <summary>
@@ -503,6 +504,20 @@ namespace Rock.Model
             else
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the debugger display.
+        /// </summary>
+        /// <value>
+        /// The debugger display.
+        /// </value>
+        private string DebuggerDisplay
+        {
+            get
+            {
+                return $@"IgnoreDataViewPersistedValues for DataViewIds: {IgnoreDataViewPersistedValues.ToList().AsDelimited( "," )},DataViewFilterOverrides.Count:{this.Count}";
             }
         }
     }
