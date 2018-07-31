@@ -78,6 +78,10 @@
     <Compile Include="Migrations\201807261532052_AddShowChannelInListToContentChannelType.Designer.cs">
       <DependentUpon>201807261532052_AddShowChannelInListToContentChannelType.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201807310018127_ContentComponents.cs" />
+    <Compile Include="Migrations\201807310018127_ContentComponents.Designer.cs">
+      <DependentUpon>201807310018127_ContentComponents.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.cs" />
     <Compile Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.Designer.cs">
       <DependentUpon>201311251734059_CreateDatabase.cs</DependentUpon>
@@ -367,6 +371,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201807261532052_AddShowChannelInListToContentChannelType.resx">
       <DependentUpon>201807261532052_AddShowChannelInListToContentChannelType.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201807310018127_ContentComponents.resx">
+      <DependentUpon>201807310018127_ContentComponents.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.resx">
       <DependentUpon>201311251734059_CreateDatabase.cs</DependentUpon>
