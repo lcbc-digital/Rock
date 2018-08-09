@@ -1,3 +1,4 @@
+--execute [dbo].[spFinance_GivingAnalyticsQuery_TransactionData] null, null, null, null, '10,511,512,513,577,703', null
 ALTER PROCEDURE [dbo].[spFinance_GivingAnalyticsQuery_TransactionData]
 	  @StartDate datetime = NULL
 	, @EndDate datetime = NULL
@@ -57,9 +58,12 @@ BEGIN
 			ON [p].[Id] = [pa].[PersonId]
 		LEFT OUTER JOIN [FinancialPaymentDetail] [fpd] WITH (NOLOCK) 
 			ON [fpd].[Id] = [ft].[FinancialPaymentDetailId]
+		LEFT OUTER JOIN [FinancialTransactionRefund] [ftr] WITH (NOLOCK)
+			ON [ftr].[Id] = [ft].[Id]
 		LEFT OUTER JOIN @AccountTbl [tt1] ON [tt1].[id] = [ftd].[AccountId]
 		LEFT OUTER JOIN @CurrencyTypeTbl [tt2] ON [tt2].[id] = [fpd].[CurrencyTypeValueId]
-		LEFT OUTER JOIN @SourceTypeTbl [tt3] ON [tt3].[id] = [ft].[SourceTypeValueId]
+		OUTER APPLY (SELECT [SourceTypeValueId] [OrigSourceTypeValueId] from FinancialTransaction where id = ftr.OriginalTransactionId ) [ftro]
+		LEFT OUTER JOIN @SourceTypeTbl [tt3] ON [tt3].[id] = ISNULL([ft].[SourceTypeValueId], [ftro].[OrigSourceTypeValueId])
 		LEFT OUTER JOIN @TransactionTypeTbl [tt4] ON [tt4].[id] = [ft].TransactionTypeValueId
 		WHERE [ft].[TransactionDateTime] BETWEEN @StartDate AND @EndDate
 		AND ( @AccountIds IS NULL OR [tt1].[Id] IS NOT NULL )
