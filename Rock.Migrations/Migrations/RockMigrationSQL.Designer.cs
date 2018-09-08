@@ -1134,5 +1134,39 @@ namespace Rock.Migrations.Migrations {
                 return ResourceManager.GetString("_201808062254493_Rollup_0806_ufnCrm_GetFamilyTitleIncludeInactive", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IF NOT EXISTS (
+        ///		SELECT *
+        ///		FROM [ContentChannelType]
+        ///		WHERE [Guid] = &apos;BCFE276D-96A3-46E5-BF9F-7B68CC44DA33&apos;
+        ///		)
+        ///	INSERT INTO [ContentChannelType] (
+        ///		[IsSystem]
+        ///		,[Name]
+        ///		,[DateRangeType]
+        ///		,[DisablePriority]
+        ///		,[Guid]
+        ///		)
+        ///	VALUES (
+        ///		1
+        ///		,&apos;Content Component&apos;
+        ///		,3
+        ///		,0
+        ///		,&apos;BCFE276D-96A3-46E5-BF9F-7B68CC44DA33&apos;
+        ///		)
+        ///
+        ///DECLARE @ContentComponentContentChannelTypeId INT = (
+        ///		SELECT TOP 1 [Id]
+        ///		FROM [ContentChannelType]
+        ///		WHERE Guid = &apos;BCFE276D-96A3-46E5-BF9F-7B68CC44DA33&apos;
+        ///		)
+        ///	,@Co [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _201808292348025_ContentComponents_CreateContentComponentChannelType {
+            get {
+                return ResourceManager.GetString("_201808292348025_ContentComponents_CreateContentComponentChannelType", resourceCulture);
+            }
+        }
     }
 }

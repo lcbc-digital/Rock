@@ -624,6 +624,7 @@
     <Content Include="Migrations\201808062254493_Rollup_0806_ufnCrm_GetFamilyTitleIncludeInactive.sql">
       <DependentUpon>201808062254493_Rollup_0806.cs</DependentUpon>
     </Content>
+    <Content Include="Migrations\201808292348025_ContentComponents_CreateContentComponentChannelType.sql" />
     <Content Include="Migrations\CreateDatabase\201311251734059_CreateDatabase.sql">
       <DependentUpon>201311251734059_CreateDatabase.cs</DependentUpon>
     </Content>

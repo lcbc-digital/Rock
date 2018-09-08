@@ -17,19 +17,16 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Web.UI;
+using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
-
 using Rock;
+using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Web.Cache;
-using Rock.Web.UI.Controls;
-using Rock.Attribute;
 using Rock.Web.UI;
-using System.Web.UI.HtmlControls;
 
 namespace RockWeb.Blocks.Cms
 {
@@ -39,6 +36,16 @@ namespace RockWeb.Blocks.Cms
     [DisplayName( "Content Component" )]
     [Category( "CMS" )]
     [Description( "Block to manage and display content." )]
+
+    [ContentChannelField( "Content Channel", category: "CustomSetting" )]
+
+    [IntegerField( "Item Cache Duration", "Number of seconds to cache the content item specified by the parameter.", false, 3600, "CustomSetting", 0, "ItemCacheDuration" )]
+    [DefinedValueField( Rock.SystemGuid.DefinedType.CONTENT_COMPONENT_TEMPLATE, "Content Component Template" )]
+    [BooleanField( "Allow Multiple Content Items", category: "CustomSetting" )]
+    [IntegerField( "Output Cache Duration", "Number of seconds to cache the resolved output. Only cache the output if you are not personalizing the output based on current user, current page, or any other merge field value.", required: false, key: "OutputCacheDuration", category: "CustomSetting" )]
+    [CustomCheckboxListField( "Cache Tags", "Cached tags are used to link cached content so that it can be expired as a group", listSource: "", required: false, key: "CacheTags", category: "CustomSetting" )]
+
+    [IntegerField( "Filter Id", "The data filter that is used to filter items", false, 0, "CustomSetting" )]
     public partial class ContentComponent : RockBlock
     {
         #region Base Control Methods
@@ -66,10 +73,7 @@ namespace RockWeb.Blocks.Cms
 
             if ( !Page.IsPostBack )
             {
-                // added for your convenience
-
-                // to show the created/modified by date time details in the PanelDrawer do something like this:
-                // pdAuditDetails.SetEntity( <YOUROBJECT>, ResolveRockUrl( "~" ) );
+                // TODO
             }
         }
 
@@ -146,15 +150,9 @@ namespace RockWeb.Blocks.Cms
             return configControls;
         }
 
-        /// <summary>
-        /// Handles the Click event of the lbEditContent control.
-        /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        private void lbEditContent_Click( object sender, EventArgs e )
-        {
-            //
-        }
+        #endregion overrides
+
+        #region Content Component - Config
 
         /// <summary>
         /// Handles the Click event of the lbConfigure control.
@@ -163,14 +161,146 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void lbConfigure_Click( object sender, EventArgs e )
         {
-            //
+            pnlContentComponentConfig.Visible = true;
+            mdContentComponentConfig.Show();
+
+            // Component Name (Content Channel Name)
+            var rockContext = new RockContext();
+            ContentChannelService contentChannelService = new ContentChannelService( rockContext );
+            Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
+            ContentChannel contentChannel = null;
+            if ( contentChannelGuid.HasValue )
+            {
+                contentChannel = contentChannelService.Get( contentChannelGuid.Value );
+                tbComponentName.Text = contentChannel.Name;
+            }
+            else
+            {
+                tbComponentName.Text = string.Empty;
+            }
+
+            nbItemCacheDuration.Text = this.GetAttributeValue( "ItemCacheDuration" );
+
+            dvpContentComponentTemplate.DefinedTypeId = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.CONTENT_COMPONENT_TEMPLATE.AsGuid() ).Id;
+            DefinedValueCache contentComponentTemplate = null;
+            var contentComponentTemplateValueGuid = this.GetAttributeValue( "ContentComponentTemplate" ).AsGuidOrNull();
+            if ( contentComponentTemplateValueGuid.HasValue )
+            {
+                contentComponentTemplate = DefinedValueCache.Get( contentComponentTemplateValueGuid.Value );
+            }
+
+            dvpContentComponentTemplate.SetValue( contentComponentTemplate );
+
+            cbAllowMultipleContentItems.Checked = this.GetAttributeValue( "AllowMultipleContentItems" ).AsBoolean();
+
+            nbOutputCacheDuration.Text = this.GetAttributeValue( "OutputCacheDuration" );
+
+            // Cache Tags
+            cblCacheTags.DataSource = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.CACHE_TAGS.AsGuid() ).DefinedValues.Select( v => v.Value ).ToList();
+            cblCacheTags.DataBind();
+            string[] selectedCacheTags = this.GetAttributeValue( "CacheTags" ).SplitDelimitedValues();
+            foreach ( ListItem cacheTag in cblCacheTags.Items )
+            {
+                cacheTag.Selected = selectedCacheTags.Contains( cacheTag.Value );
+            }
+
+            cePreHtml.Text = this.BlockCache.PreHtml;
+            cePostHtml.Text = this.BlockCache.PostHtml;
+        }
+
+        /// <summary>
+        /// Handles the SaveClick event of the mdContentComponentConfig control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void mdContentComponentConfig_SaveClick( object sender, EventArgs e )
+        {
+            var rockContext = new RockContext();
+            ContentChannelService contentChannelService = new ContentChannelService( rockContext );
+            Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
+            ContentChannel contentChannel = null;
+
+            if ( contentChannelGuid.HasValue )
+            {
+                contentChannel = contentChannelService.Get( contentChannelGuid.Value );
+            }
+
+            if ( contentChannel == null )
+            {
+                contentChannel = new ContentChannel();
+                contentChannel.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                contentChannelService.Add( contentChannel );
+            }
+
+            contentChannel.Name = tbComponentName.Text;
+            rockContext.SaveChanges();
+            this.SetAttributeValue( "ContentChannel", contentChannel.Guid.ToString() );
+
+            this.SetAttributeValue( "ItemCacheDuration", nbItemCacheDuration.Text );
+
+            int? contentComponentTemplateValueId = dvpContentComponentTemplate.SelectedValue.AsInteger();
+            Guid? contentComponentTemplateValueGuid = null;
+            if ( contentComponentTemplateValueId.HasValue )
+            {
+                var contentComponentTemplate = DefinedValueCache.Get( contentComponentTemplateValueId.Value );
+                if ( contentComponentTemplate != null )
+                {
+                    contentComponentTemplateValueGuid = contentComponentTemplate.Guid;
+                }
+            }
+
+            this.SetAttributeValue( "ContentComponentTemplate", contentComponentTemplateValueGuid.ToString() );
+            this.SetAttributeValue( "AllowMultipleContentItems", cbAllowMultipleContentItems.Checked.ToString() );
+            this.SetAttributeValue( "OutputCacheDuration", nbOutputCacheDuration.Text );
+            this.SetAttributeValue( "CacheTags", cblCacheTags.SelectedValues.AsDelimited( "," ) );
+
+            this.SaveAttributeValues();
+
+            var block = new BlockService( rockContext ).Get( this.BlockId );
+            block.PreHtml = cePreHtml.Text;
+            block.PostHtml = cePostHtml.Text;
+
+            mdContentComponentConfig.Hide();
+            pnlContentComponentConfig.Visible = false;
+
+            // reload the page to make sure we have a clean load
+            NavigateToCurrentPageReference();
+        }
+
+        #endregion Content Component - Config
+
+        #region Content Component - Edit Content
+
+        /// <summary>
+        /// Handles the Click event of the lbEditContent control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        private void lbEditContent_Click( object sender, EventArgs e )
+        {
+            pnlContentComponentEditContent.Visible = true;
+            mdContentComponentEditContent.Show();
+        }
+
+        /// <summary>
+        /// Handles the SaveClick event of the mdContentComponentEditContent control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void mdContentComponentEditContent_SaveClick( object sender, EventArgs e )
+        {
+            // TODO
+
+            mdContentComponentEditContent.Hide();
+            pnlContentComponentEditContent.Visible = false;
+
+            // reload the page to make sure we have a clean load
+            NavigateToCurrentPageReference();
         }
 
         #endregion
 
         #region Events
-
-        // handlers called by the controls on your block
 
         /// <summary>
         /// Handles the BlockUpdated event of the control.
@@ -181,12 +311,6 @@ namespace RockWeb.Blocks.Cms
         {
 
         }
-
-        #endregion
-
-        #region Methods
-
-        // helper functional methods (like BindGrid(), etc.)
 
         #endregion
     }

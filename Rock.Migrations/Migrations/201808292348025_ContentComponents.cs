@@ -29,27 +29,7 @@ namespace Rock.Migrations
         /// </summary>
         public override void Up()
         {
-            Sql( @"
-IF NOT EXISTS (
-		SELECT *
-		FROM [ContentChannelType]
-		WHERE [Guid] = 'BCFE276D-96A3-46E5-BF9F-7B68CC44DA33'
-		)
-	INSERT INTO [ContentChannelType] (
-		[IsSystem]
-		,[Name]
-		,[DateRangeType]
-		,[DisablePriority]
-		,[Guid]
-		)
-	VALUES (
-		1
-		,'Content Component'
-		,3
-		,0
-		,'BCFE276D-96A3-46E5-BF9F-7B68CC44DA33'
-		)" );
-
+            Sql( MigrationSQL._201808292348025_ContentComponents_CreateContentComponentChannelType );
         }
 
         /// <summary>
