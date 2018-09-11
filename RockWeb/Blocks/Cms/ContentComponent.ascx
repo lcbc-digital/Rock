@@ -24,7 +24,7 @@
                         <div class="col-md-6">
                             <Rock:RockTextBox ID="tbComponentName" runat="server" Label="Component Name" Required="true" MaxLength="100" ValidationGroup="vgContentComponentConfig" />
                             <Rock:NumberBox ID="nbItemCacheDuration" runat="server" Label="Item Cache Duration" MinimumValue="0" CssClass="input-width-sm" Help="Number of seconds to cache the content item specified by the parameter." />
-                            <Rock:DefinedValuePicker ID="dvpContentComponentTemplate" runat="server" Label="Content Component Template" />
+                            <Rock:DefinedValuePicker ID="dvpContentComponentTemplate" runat="server" Required="true" Label="Content Component Template" ValidationGroup="vgContentComponentConfig" />
                         </div>
                         <div class="col-md-6">
                             <Rock:RockCheckBox ID="cbAllowMultipleContentItems" runat="server" Label="Allow Multiple Content Items" />
@@ -35,7 +35,7 @@
 
                     <div class="row">
                         <div class="col-md-6">
-                            <Rock:DynamicPlaceHolder ID="phAttributes" runat="server" />
+                            <Rock:DynamicPlaceholder ID="phContentChannelAttributes" runat="server" />
 
                             <div class="form-group">
                                 <label class="control-label">
@@ -56,10 +56,27 @@
             </Rock:ModalDialog>
         </asp:Panel>
 
-        <%-- Content Component Edit Content --%>
-        <asp:Panel ID="pnlContentComponentEditContent" runat="server" Visible="false">
-            <Rock:ModalDialog ID="mdContentComponentEditContent" runat="server" OnSaveClick="mdContentComponentEditContent_SaveClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContent" OnCancelScript="clearDialog();">
+        <%-- Content Component Edit Content Channel Items--%>
+        <asp:Panel ID="pnlContentComponentEditContentChannelItems" runat="server" Visible="false">
+            <Rock:ModalDialog ID="mdContentComponentEditContentChannelItems" runat="server" OnSaveClick="mdContentComponentEditContentChannelItems_SaveClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContentChannelItems" OnCancelScript="clearDialog();">
                 <Content>
+                    <div class="row">
+                        <asp:Panel ID="pnlContentChannelItemEdit" runat="server" CssClass="col-md-8">
+                            <Rock:RockTextBox ID="tbContentChannelItemTitle" runat="server" Label="Title" Required="true" MaxLength="200" ValidationGroup="vgContentComponentEditContentChannelItems" />
+                            <Rock:DynamicPlaceholder ID="phContentChannelItemsAttributes" runat="server" />
+                        </asp:Panel>
+                        <asp:Panel ID="pnlContentChannelItemsList" runat="server" CssClass="col-md-4">
+                            <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" OnGridReorder="gContentChannelItems_GridReorder">
+                                <Columns>
+                                    <Rock:ReorderField />
+                                    <asp:BoundField DataField="Title" />
+                                    <Rock:DeleteField OnClick="gContentChannelItems_DeleteClick" />
+                                </Columns>
+                            </Rock:Grid>
+                        </asp:Panel>
+                    </div>
+
+
                 </Content>
             </Rock:ModalDialog>
         </asp:Panel>

@@ -1146,6 +1146,7 @@ namespace Rock.Migrations.Migrations {
         ///		,[Name]
         ///		,[DateRangeType]
         ///		,[DisablePriority]
+        ///        ,[ShowInChannelList]
         ///		,[Guid]
         ///		)
         ///	VALUES (
@@ -1153,19 +1154,18 @@ namespace Rock.Migrations.Migrations {
         ///		,&apos;Content Component&apos;
         ///		,3
         ///		,0
+        ///        ,0
         ///		,&apos;BCFE276D-96A3-46E5-BF9F-7B68CC44DA33&apos;
         ///		)
         ///
         ///DECLARE @ContentComponentContentChannelTypeId INT = (
         ///		SELECT TOP 1 [Id]
         ///		FROM [ContentChannelType]
-        ///		WHERE Guid = &apos;BCFE276D-96A3-46E5-BF9F-7B68CC44DA33&apos;
-        ///		)
-        ///	,@Co [rest of string was truncated]&quot;;.
+        ///		WHERE Guid = &apos;BCFE276 [rest of string was truncated]&quot;;.
         /// </summary>
-        public static string _201808292348025_ContentComponents_CreateContentComponentChannelType {
+        public static string _201809102203185_ContentComponents_CreateContentComponentChannelType {
             get {
-                return ResourceManager.GetString("_201808292348025_ContentComponents_CreateContentComponentChannelType", resourceCulture);
+                return ResourceManager.GetString("_201809102203185_ContentComponents_CreateContentComponentChannelType", resourceCulture);
             }
         }
     }

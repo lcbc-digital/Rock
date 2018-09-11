@@ -75,6 +75,8 @@ namespace RockWeb.Blocks.Cms
             {
                 // TODO
             }
+
+            CreateDynamicControls();
         }
 
         #endregion
@@ -152,6 +154,62 @@ namespace RockWeb.Blocks.Cms
 
         #endregion overrides
 
+        #region Shared Methods
+
+        /// <summary>
+        /// Gets the content channel.
+        /// </summary>
+        /// <param name="rockContext">The rock context.</param>
+        /// <returns></returns>
+        public ContentChannel GetContentChannel( RockContext rockContext )
+        {
+            ContentChannelService contentChannelService = new ContentChannelService( rockContext );
+            Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
+            ContentChannel contentChannel = null;
+            if ( contentChannelGuid.HasValue )
+            {
+                contentChannel = contentChannelService.Get( contentChannelGuid.Value );
+            }
+
+            return contentChannel;
+        }
+
+        /// <summary>
+        /// Creates the dynamic controls.
+        /// </summary>
+        private void CreateDynamicControls()
+        {
+            if ( pnlContentComponentConfig.Visible )
+            {
+                // temporarily create so we can get the Attribute UI configured
+                var contentChannel = new ContentChannel();
+                contentChannel.ContentChannelTypeId = new ContentChannelTypeService( new RockContext() ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                contentChannel.LoadAttributes();
+                phContentChannelAttributes.Controls.Clear();
+                Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, false, mdContentComponentConfig.ValidationGroup );
+            }
+
+            if ( pnlContentComponentEditContentChannelItems.Visible )
+            {
+                // temporarily create so we can get the Attribute UI configured
+                ContentChannelItem contentChannelItem = new ContentChannelItem();
+
+                var rockContext = new RockContext();
+                var contentChannel = this.GetContentChannel( rockContext );
+                if ( contentChannel != null )
+                {
+                    contentChannelItem.ContentChannelId = contentChannel.Id;
+                }
+
+                contentChannelItem.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                contentChannelItem.LoadAttributes();
+                phContentChannelItemsAttributes.Controls.Clear();
+                Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemsAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
+            }
+        }
+
+        #endregion Shared Methods
+
         #region Content Component - Config
 
         /// <summary>
@@ -173,6 +231,9 @@ namespace RockWeb.Blocks.Cms
             {
                 contentChannel = contentChannelService.Get( contentChannelGuid.Value );
                 tbComponentName.Text = contentChannel.Name;
+                contentChannel.LoadAttributes();
+                phContentChannelAttributes.Controls.Clear();
+                Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, true, mdContentComponentConfig.ValidationGroup );
             }
             else
             {
@@ -181,7 +242,12 @@ namespace RockWeb.Blocks.Cms
 
             nbItemCacheDuration.Text = this.GetAttributeValue( "ItemCacheDuration" );
 
-            dvpContentComponentTemplate.DefinedTypeId = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.CONTENT_COMPONENT_TEMPLATE.AsGuid() ).Id;
+            DefinedTypeCache contentComponentTemplateType = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.CONTENT_COMPONENT_TEMPLATE.AsGuid() );
+            if ( contentComponentTemplateType != null )
+            {
+                dvpContentComponentTemplate.DefinedTypeId = contentComponentTemplateType.Id;
+            }
+
             DefinedValueCache contentComponentTemplate = null;
             var contentComponentTemplateValueGuid = this.GetAttributeValue( "ContentComponentTemplate" ).AsGuidOrNull();
             if ( contentComponentTemplateValueGuid.HasValue )
@@ -232,8 +298,13 @@ namespace RockWeb.Blocks.Cms
                 contentChannelService.Add( contentChannel );
             }
 
+            contentChannel.LoadAttributes( rockContext );
+            Rock.Attribute.Helper.GetEditValues( phContentChannelAttributes, contentChannel );
+
             contentChannel.Name = tbComponentName.Text;
             rockContext.SaveChanges();
+            contentChannel.SaveAttributeValues( rockContext );
+
             this.SetAttributeValue( "ContentChannel", contentChannel.Guid.ToString() );
 
             this.SetAttributeValue( "ItemCacheDuration", nbItemCacheDuration.Text );
@@ -259,6 +330,7 @@ namespace RockWeb.Blocks.Cms
             var block = new BlockService( rockContext ).Get( this.BlockId );
             block.PreHtml = cePreHtml.Text;
             block.PostHtml = cePostHtml.Text;
+            rockContext.SaveChanges();
 
             mdContentComponentConfig.Hide();
             pnlContentComponentConfig.Visible = false;
@@ -278,24 +350,39 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void lbEditContent_Click( object sender, EventArgs e )
         {
-            pnlContentComponentEditContent.Visible = true;
-            mdContentComponentEditContent.Show();
+            pnlContentComponentEditContentChannelItems.Visible = true;
+            mdContentComponentEditContentChannelItems.Show();
+
+
+            /*contentChannelItem.LoadAttributes();
+            phContentChannelItemsAttributes.Controls.Clear();
+            Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemsAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );*/
         }
 
         /// <summary>
-        /// Handles the SaveClick event of the mdContentComponentEditContent control.
+        /// Handles the SaveClick event of the mdContentComponentEditContentChannelItems control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        protected void mdContentComponentEditContent_SaveClick( object sender, EventArgs e )
+        protected void mdContentComponentEditContentChannelItems_SaveClick( object sender, EventArgs e )
         {
             // TODO
 
-            mdContentComponentEditContent.Hide();
-            pnlContentComponentEditContent.Visible = false;
+            mdContentComponentEditContentChannelItems.Hide();
+            pnlContentComponentEditContentChannelItems.Visible = false;
 
             // reload the page to make sure we have a clean load
             NavigateToCurrentPageReference();
+        }
+
+        protected void gContentChannelItems_GridReorder( object sender, Rock.Web.UI.Controls.GridReorderEventArgs e )
+        {
+            // TODO
+        }
+
+        protected void gContentChannelItems_DeleteClick( object sender, Rock.Web.UI.Controls.RowEventArgs e )
+        {
+            // TODO
         }
 
         #endregion
@@ -313,5 +400,7 @@ namespace RockWeb.Blocks.Cms
         }
 
         #endregion
+
+
     }
 }

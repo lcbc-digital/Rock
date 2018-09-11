@@ -268,7 +268,7 @@
   <data name="_201707311527250_LastName" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>createdatabase\201707311527250_lastname.gz;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="_201808292348025_ContentComponents_CreateContentComponentChannelType" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>201808292348025_contentcomponents_createcontentcomponentchanneltype.sql;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  <data name="_201809102203185_ContentComponents_CreateContentComponentChannelType" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>201809102203185_ContentComponents_CreateContentComponentChannelType.sql;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
   </data>
 </root>
