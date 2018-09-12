@@ -36,7 +36,15 @@
                     <div class="row">
                         <div class="col-md-6">
                             <Rock:DynamicPlaceholder ID="phContentChannelAttributes" runat="server" />
+                        </div>
+                        <div class="col-md-6">
+                            <Rock:CodeEditor ID="cePreHtml" runat="server" Label="Pre-HTML" Help="HTML Content to render before the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
+                            <Rock:CodeEditor ID="cePostHtml" runat="server" Label="Post-HTML" Help="HTML Content to render after the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
+                        </div>
+                    </div>
 
+                    <div class="row">
+                        <div class="col-md-12">
                             <div class="form-group">
                                 <label class="control-label">
                                     Filter
@@ -44,11 +52,6 @@
                                 <asp:HiddenField ID="hfDataFilterId" runat="server" />
                                 <asp:PlaceHolder ID="phFilters" runat="server"></asp:PlaceHolder>
                             </div>
-
-                        </div>
-                        <div class="col-md-6">
-                            <Rock:CodeEditor ID="cePreHtml" runat="server" Label="Pre-HTML" Help="HTML Content to render before the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="400" />
-                            <Rock:CodeEditor ID="cePostHtml" runat="server" Label="Post-HTML" Help="HTML Content to render after the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="400" />
                         </div>
                     </div>
 
@@ -58,7 +61,7 @@
 
         <%-- Content Component Edit - Content Channel Item(s)--%>
         <asp:Panel ID="pnlContentComponentEditContentChannelItems" runat="server" Visible="false">
-            <Rock:ModalDialog ID="mdContentComponentEditContentChannelItems" runat="server" OnSaveClick="mdContentComponentEditContentChannelItems_SaveClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContentChannelItem" OnCancelScript="clearDialog();">
+            <Rock:ModalDialog ID="mdContentComponentEditContentChannelItems" runat="server" OnSaveClick="mdContentComponentEditContentChannelItems_SaveCloseClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContentChannelItem" OnCancelScript="clearDialog();">
                 <Content>
                     <div class="row">
                         <%-- NOTE: CssClass for pnlContentChannelItemEdit is set in CodeBehind based on AllowMultipleItems Option --%>
@@ -69,6 +72,7 @@
                             <Rock:DynamicPlaceholder ID="phContentChannelItemAttributes" runat="server" />
                         </asp:Panel>
                         <asp:Panel ID="pnlContentChannelItemsList" runat="server" CssClass="col-md-4">
+                            <Rock:ModalAlert ID="mdGridWarning" runat="server" />
                             <div class="grid">
                                 <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" AllowSorting="false" RowItemText="Item" OnRowSelected="gContentChannelItems_RowSelected">
                                     <Columns>
@@ -82,7 +86,7 @@
                     </div>
 
                     <div class="actions">
-                        <asp:LinkButton ID="btnSaveItem" runat="server" AccessKey="s" ToolTip="Alt+s" Text="Save Item" CssClass="btn btn-primary" OnClick="btnSaveItem_Click" />
+                        <asp:LinkButton ID="btnSaveItem" runat="server" AccessKey="s" ToolTip="Alt+s" Text="Save Item" ValidationGroup="vgContentComponentEditContentChannelItem" CssClass="btn btn-primary" OnClick="btnSaveItem_Click" />
                     </div>
 
                 </Content>

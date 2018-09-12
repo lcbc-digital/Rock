@@ -13,20 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // </copyright>
-//
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
+
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Reporting;
 using Rock.Web.Cache;
 using Rock.Web.UI;
+using Rock.Web.UI.Controls;
 
 namespace RockWeb.Blocks.Cms
 {
@@ -59,6 +62,16 @@ namespace RockWeb.Blocks.Cms
         /// The item cache key
         /// </summary>
         private const string ITEM_CACHE_KEY = "Item";
+
+        /// <summary>
+        /// The Text of btnSaveItem when not in 'AllowMultipleContentItems' mode
+        /// </summary>
+        private const string CONTENT_CHANNEL_ITEM_SAVE_TEXT = "Save";
+
+        /// <summary>
+        /// The Text of btnSaveItem when in 'AllowMultipleContentItems' mode
+        /// </summary>
+        private const string CONTENT_CHANNEL_ITEM_CLOSE_MODAL_TEXT = "Close";
 
         #endregion Fields
 
@@ -97,6 +110,34 @@ namespace RockWeb.Blocks.Cms
             }
 
             CreateDynamicControls();
+        }
+
+        /// <summary>
+        /// Restores the view-state information from a previous user control request that was saved by the <see cref="M:System.Web.UI.UserControl.SaveViewState" /> method.
+        /// </summary>
+        /// <param name="savedState">An <see cref="T:System.Object" /> that represents the user control state to be restored.</param>
+        protected override void LoadViewState( object savedState )
+        {
+            base.LoadViewState( savedState );
+
+            var contentChannel = this.GetContentChannel();
+            if ( contentChannel != null )
+            {
+                var rockContext = new RockContext();
+                CreateFilterControl( contentChannel, DataViewFilter.FromJson( ViewState["DataViewFilter"].ToString() ), false, rockContext );
+            }
+        }
+
+        /// <summary>
+        /// Saves any user control view-state changes that have occurred since the last page postback.
+        /// </summary>
+        /// <returns>
+        /// Returns the user control's current view state. If there is no view state associated with the control, it returns null.
+        /// </returns>
+        protected override object SaveViewState()
+        {
+            ViewState["DataViewFilter"] = ReportingHelper.GetFilterFromControls( phFilters ).ToJson();
+            return base.SaveViewState();
         }
 
         #endregion
@@ -267,15 +308,35 @@ namespace RockWeb.Blocks.Cms
             }
 
             var rockContext = new RockContext();
-            IQueryable<ContentChannelItem> contentChannelItemsQuery = new ContentChannelItemService( rockContext ).Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title );
+            var contentChannelItemService = new ContentChannelItemService( rockContext );
+            IQueryable<ContentChannelItem> contentChannelItemsQuery = contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title );
 
-            // TODO Filter
+            var allowMultipleContentItems = this.GetAttributeValue( "AllowMultipleContentItems" ).AsBoolean();
+            if (!allowMultipleContentItems)
+            {
+                // if allowMultipleContentItems = false, just get the first one
+                // if it was configured for allowMultipleContentItems previously, there might be more, but they won't show until allowMultipleContentItems is enabled again
+                contentChannelItemsQuery = contentChannelItemsQuery.Take( 1 );
+            }
+
+            int? dataFilterId = GetAttributeValue( "FilterId" ).AsIntegerOrNull();
+            if ( dataFilterId.HasValue )
+            {
+                var dataFilterService = new DataViewFilterService( rockContext );
+                ParameterExpression paramExpression = contentChannelItemService.ParameterExpression;
+                var itemType = typeof( Rock.Model.ContentChannelItem );
+                var dataFilter = dataFilterService.Queryable( "ChildFilters" ).FirstOrDefault( a => a.Id == dataFilterId.Value );
+                List<string> errorMessages = new List<string>();
+                Expression whereExpression = dataFilter != null ? dataFilter.GetExpression( itemType, contentChannelItemService, paramExpression, errorMessages ) : null;
+
+                contentChannelItemsQuery = contentChannelItemsQuery.Where( paramExpression, whereExpression, null );
+            }
 
             return contentChannelItemsQuery.ToList();
         }
 
         /// <summary>
-        /// Gets the content channel.
+        /// Gets the content channel cache object.
         /// </summary>
         /// <returns></returns>
         public ContentChannelCache GetContentChannel()
@@ -383,6 +444,28 @@ namespace RockWeb.Blocks.Cms
 
             cePreHtml.Text = this.BlockCache.PreHtml;
             cePostHtml.Text = this.BlockCache.PostHtml;
+
+            hfDataFilterId.Value = GetAttributeValue( "FilterId" );
+
+            int? filterId = hfDataFilterId.Value.AsIntegerOrNull();
+            var rockContext = new RockContext();
+
+            var filterService = new DataViewFilterService( rockContext );
+            DataViewFilter filter = null;
+
+            if ( filterId.HasValue )
+            {
+                filter = filterService.Get( filterId.Value );
+            }
+
+            if ( filter == null || filter.ExpressionType == FilterExpressionType.Filter )
+            {
+                filter = new DataViewFilter();
+                filter.Guid = new Guid();
+                filter.ExpressionType = FilterExpressionType.GroupAll;
+            }
+
+            CreateFilterControl( contentChannel, filter, true, rockContext );
         }
 
         /// <summary>
@@ -393,6 +476,36 @@ namespace RockWeb.Blocks.Cms
         protected void mdContentComponentConfig_SaveClick( object sender, EventArgs e )
         {
             var rockContext = new RockContext();
+
+            var dataViewFilter = ReportingHelper.GetFilterFromControls( phFilters );
+
+            // update Guids since we are creating a new dataFilter and children and deleting the old one
+            SetNewDataFilterGuids( dataViewFilter );
+
+            if ( !Page.IsValid )
+            {
+                return;
+            }
+
+            if ( !dataViewFilter.IsValid )
+            {
+                // Controls will render the error messages                    
+                return;
+            }
+
+            DataViewFilterService dataViewFilterService = new DataViewFilterService( rockContext );
+
+            int? dataViewFilterId = hfDataFilterId.Value.AsIntegerOrNull();
+            if ( dataViewFilterId.HasValue )
+            {
+                var oldDataViewFilter = dataViewFilterService.Get( dataViewFilterId.Value );
+                DeleteDataViewFilter( oldDataViewFilter, dataViewFilterService );
+            }
+
+            dataViewFilterService.Add( dataViewFilter );
+
+            rockContext.SaveChanges();
+
             ContentChannelService contentChannelService = new ContentChannelService( rockContext );
             Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
             ContentChannel contentChannel = null;
@@ -435,6 +548,7 @@ namespace RockWeb.Blocks.Cms
             this.SetAttributeValue( "AllowMultipleContentItems", cbAllowMultipleContentItems.Checked.ToString() );
             this.SetAttributeValue( "OutputCacheDuration", nbOutputCacheDuration.Text );
             this.SetAttributeValue( "CacheTags", cblCacheTags.SelectedValues.AsDelimited( "," ) );
+            this.SetAttributeValue( "FilterId", dataViewFilter.Id.ToString() );
 
             this.SaveAttributeValues();
 
@@ -483,7 +597,7 @@ namespace RockWeb.Blocks.Cms
 
             EditContentChannelItem( contentChannelItemId );
 
-            mdContentComponentEditContentChannelItems.SaveButtonText = allowMultipleContentItems ? "Close" : "Save";
+            mdContentComponentEditContentChannelItems.SaveButtonText = allowMultipleContentItems ? CONTENT_CHANNEL_ITEM_CLOSE_MODAL_TEXT : CONTENT_CHANNEL_ITEM_SAVE_TEXT;
             mdContentComponentEditContentChannelItems.CancelLinkVisible = !allowMultipleContentItems;
             btnSaveItem.Visible = allowMultipleContentItems;
         }
@@ -546,7 +660,7 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void btnSaveItem_Click( object sender, EventArgs e )
         {
-            mdContentComponentEditContentChannelItems_SaveClick( sender, e );
+            SaveContentChannelItem();
         }
 
         /// <summary>
@@ -554,7 +668,24 @@ namespace RockWeb.Blocks.Cms
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        protected void mdContentComponentEditContentChannelItems_SaveClick( object sender, EventArgs e )
+        protected void mdContentComponentEditContentChannelItems_SaveCloseClick( object sender, EventArgs e )
+        {
+            if ( mdContentComponentEditContentChannelItems.SaveButtonText == CONTENT_CHANNEL_ITEM_SAVE_TEXT )
+            {
+                SaveContentChannelItem();
+            }
+
+            mdContentComponentEditContentChannelItems.Hide();
+            pnlContentComponentEditContentChannelItems.Visible = false;
+
+            // reload the page to make sure we have a clean load
+            NavigateToCurrentPageReference();
+        }
+
+        /// <summary>
+        /// Saves the content channel item.
+        /// </summary>
+        private void SaveContentChannelItem()
         {
             RockContext rockContext = new RockContext();
             ContentChannelItemService contentChannelItemService = new ContentChannelItemService( rockContext );
@@ -572,7 +703,7 @@ namespace RockWeb.Blocks.Cms
                 contentChannelItem = new ContentChannelItem();
                 contentChannelItem.ContentChannelTypeId = contentChannel.ContentChannelTypeId;
                 contentChannelItem.ContentChannelId = contentChannel.Id;
-                contentChannelItem.Order = (contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).Max( a => ( int? ) a.Order ) ?? 0) + 1;
+                contentChannelItem.Order = ( contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).Max( a => ( int? ) a.Order ) ?? 0 ) + 1;
                 contentChannelItemService.Add( contentChannelItem );
             }
 
@@ -585,14 +716,8 @@ namespace RockWeb.Blocks.Cms
             rockContext.SaveChanges();
             contentChannelItem.SaveAttributeValues( rockContext );
 
-            mdContentComponentEditContentChannelItems.Hide();
-            pnlContentComponentEditContentChannelItems.Visible = false;
-
             RemoveCacheItem( OUTPUT_CACHE_KEY );
             RemoveCacheItem( ITEM_CACHE_KEY );
-
-            // reload the page to make sure we have a clean load
-            NavigateToCurrentPageReference();
         }
 
         /// <summary>
@@ -651,7 +776,33 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="Rock.Web.UI.Controls.RowEventArgs"/> instance containing the event data.</param>
         protected void gContentChannelItems_DeleteClick( object sender, Rock.Web.UI.Controls.RowEventArgs e )
         {
-            // TODO
+            var rockContext = new RockContext();
+            var contentItemService = new ContentChannelItemService( rockContext );
+            var contentItemAssociationService = new ContentChannelItemAssociationService( rockContext );
+            var contentItemSlugService = new ContentChannelItemSlugService( rockContext );
+
+            ContentChannelItem contentItem = contentItemService.Get( e.RowKeyId );
+
+            if ( contentItem != null )
+            {
+                string errorMessage;
+                if ( !contentItemService.CanDelete( contentItem, out errorMessage ) )
+                {
+                    mdGridWarning.Show( errorMessage, ModalAlertType.Information );
+                    return;
+                }
+
+                rockContext.WrapTransaction( () =>
+                {
+                    contentItemAssociationService.DeleteRange( contentItem.ChildItems );
+                    contentItemAssociationService.DeleteRange( contentItem.ParentItems );
+                    contentItemSlugService.DeleteRange( contentItem.ContentChannelItemSlugs );
+                    contentItemService.Delete( contentItem );
+                    rockContext.SaveChanges();
+                } );
+            }
+
+            BindContentChannelItemsGrid();
         }
 
         #endregion
@@ -670,8 +821,216 @@ namespace RockWeb.Blocks.Cms
 
         #endregion
 
+        #region Filter Related stuff
 
+        #endregion 
 
-        
+        /// <summary>
+        /// Creates the filter control.
+        /// </summary>
+        /// <param name="channel">The channel.</param>
+        /// <param name="filter">The filter.</param>
+        /// <param name="setSelection">if set to <c>true</c> [set selection].</param>
+        /// <param name="rockContext">The rock context.</param>
+        private void CreateFilterControl( ContentChannelCache channel, DataViewFilter filter, bool setSelection, RockContext rockContext )
+        {
+            phFilters.Controls.Clear();
+            var contentChannel = this.GetContentChannel();
+            if ( filter != null && contentChannel != null )
+            {
+                CreateFilterControl( phFilters, filter, setSelection, rockContext, contentChannel );
+            }
+        }
+
+        /// <summary>
+        /// Creates the filter control.
+        /// </summary>
+        /// <param name="parentControl">The parent control.</param>
+        /// <param name="filter">The filter.</param>
+        /// <param name="setSelection">if set to <c>true</c> [set selection].</param>
+        /// <param name="rockContext">The rock context.</param>
+        private void CreateFilterControl( Control parentControl, DataViewFilter filter, bool setSelection, RockContext rockContext, ContentChannelCache contentChannel )
+        {
+            try
+            {
+                if ( filter.ExpressionType == FilterExpressionType.Filter )
+                {
+                    var filterControl = AddFilterField( parentControl, filter.Guid, contentChannel );
+
+                    if ( filter.EntityTypeId.HasValue )
+                    {
+                        var entityTypeCache = EntityTypeCache.Get( filter.EntityTypeId.Value, rockContext );
+                        if ( entityTypeCache != null )
+                        {
+                            filterControl.FilterEntityTypeName = entityTypeCache.Name;
+                        }
+                    }
+
+                    filterControl.Expanded = filter.Expanded;
+                    if ( setSelection )
+                    {
+                        try
+                        {
+                            filterControl.SetSelection( filter.Selection );
+                        }
+                        catch ( Exception ex )
+                        {
+                            this.LogException( new Exception( "Exception setting selection for DataViewFilter: " + filter.Guid, ex ) );
+                        }
+                    }
+                }
+                else
+                {
+                    var groupControl = new FilterGroup();
+                    parentControl.Controls.Add( groupControl );
+                    groupControl.DataViewFilterGuid = filter.Guid;
+                    groupControl.ID = string.Format( "fg_{0}", groupControl.DataViewFilterGuid.ToString( "N" ) );
+                    groupControl.FilteredEntityTypeName = typeof( Rock.Model.ContentChannelItem ).FullName;
+                    groupControl.IsDeleteEnabled = parentControl is FilterGroup;
+                    if ( setSelection )
+                    {
+                        groupControl.FilterType = filter.ExpressionType;
+                    }
+
+                    groupControl.AddFilterClick += groupControl_AddFilterClick;
+                    groupControl.AddGroupClick += groupControl_AddGroupClick;
+                    groupControl.DeleteGroupClick += groupControl_DeleteGroupClick;
+                    foreach ( var childFilter in filter.ChildFilters )
+                    {
+                        CreateFilterControl( groupControl, childFilter, setSelection, rockContext, contentChannel );
+                    }
+                }
+            }
+            catch ( Exception ex )
+            {
+                this.LogException( new Exception( "Exception creating FilterControl for DataViewFilter: " + filter.Guid, ex ) );
+            }
+        }
+
+        /// <summary>
+        /// Sets the new data filter guids.
+        /// </summary>
+        /// <param name="dataViewFilter">The data view filter.</param>
+        private void SetNewDataFilterGuids( DataViewFilter dataViewFilter )
+        {
+            if ( dataViewFilter != null )
+            {
+                dataViewFilter.Guid = Guid.NewGuid();
+                foreach ( var childFilter in dataViewFilter.ChildFilters )
+                {
+                    SetNewDataFilterGuids( childFilter );
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deletes the data view filter.
+        /// </summary>
+        /// <param name="dataViewFilter">The data view filter.</param>
+        /// <param name="service">The service.</param>
+        private void DeleteDataViewFilter( DataViewFilter dataViewFilter, DataViewFilterService service )
+        {
+            if ( dataViewFilter != null )
+            {
+                foreach ( var childFilter in dataViewFilter.ChildFilters.ToList() )
+                {
+                    DeleteDataViewFilter( childFilter, service );
+                }
+
+                service.Delete( dataViewFilter );
+            }
+        }
+
+        /// <summary>
+        /// Handles the AddFilterClick event of the groupControl control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+        protected void groupControl_AddFilterClick( object sender, EventArgs e )
+        {
+            FilterGroup groupControl = sender as FilterGroup;
+            FilterField filterField = AddFilterField( groupControl, Guid.NewGuid(), this.GetContentChannel() );
+            filterField.Expanded = true;
+        }
+
+        /// <summary>
+        /// Creates the filter field.
+        /// </summary>
+        /// <param name="dataViewFilterGuid">The data view filter unique identifier.</param>
+        /// <param name="propertyFieldEntityFieldsOverride">The property field entity fields override.</param>
+        /// <returns></returns>
+        private FilterField AddFilterField( Control parentControl, Guid dataViewFilterGuid, ContentChannelCache contentChannel )
+        {
+            FilterField filterField = new FilterField();
+
+            filterField.Entity = new ContentChannelItem
+            {
+                ContentChannelId = contentChannel.Id,
+                ContentChannelTypeId = contentChannel.ContentChannelTypeId
+            };
+
+            filterField.DataViewFilterGuid = dataViewFilterGuid;
+
+            parentControl.Controls.Add( filterField );
+
+            filterField.ID = string.Format( "ff_{0}", filterField.DataViewFilterGuid.ToString( "N" ) );
+
+            // Remove the 'Other Data View' and ContentChannel/ContentChannelType Filters as it doesn't really make sense to have it available in this scenario
+            filterField.ExcludedFilterTypes = new string[]
+            {
+                typeof( Rock.Reporting.DataFilter.OtherDataViewFilter ).FullName,
+                typeof( Rock.Reporting.DataFilter.NotInOtherDataViewFilter ).FullName,
+                typeof( Rock.Reporting.DataFilter.ContentChannelItem.ContentChannelItemAttributesFilter ).FullName,
+                typeof( Rock.Reporting.DataFilter.ContentChannelItem.ContentChannel ).FullName,
+                typeof( Rock.Reporting.DataFilter.ContentChannelItem.ContentChannelType ).FullName,
+            };
+
+            filterField.DeleteClick += filterControl_DeleteClick;
+            filterField.FilteredEntityTypeName = typeof( Rock.Model.ContentChannelItem ).FullName;
+
+            return filterField;
+        }
+
+        /// <summary>
+        /// Handles the AddGroupClick event of the groupControl control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+        protected void groupControl_AddGroupClick( object sender, EventArgs e )
+        {
+            FilterGroup groupControl = sender as FilterGroup;
+            FilterGroup childGroupControl = new FilterGroup();
+            childGroupControl.DataViewFilterGuid = Guid.NewGuid();
+            groupControl.Controls.Add( childGroupControl );
+            childGroupControl.ID = string.Format( "fg_{0}", childGroupControl.DataViewFilterGuid.ToString( "N" ) );
+            childGroupControl.FilteredEntityTypeName = groupControl.FilteredEntityTypeName;
+            childGroupControl.FilterType = FilterExpressionType.GroupAll;
+
+            childGroupControl.AddFilterClick += groupControl_AddFilterClick;
+            childGroupControl.AddGroupClick += groupControl_AddGroupClick;
+            childGroupControl.DeleteGroupClick += groupControl_DeleteGroupClick;
+        }
+
+        /// <summary>
+        /// Handles the DeleteClick event of the filterControl control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+        protected void filterControl_DeleteClick( object sender, EventArgs e )
+        {
+            FilterField fieldControl = sender as FilterField;
+            fieldControl.Parent.Controls.Remove( fieldControl );
+        }
+
+        /// <summary>
+        /// Handles the DeleteGroupClick event of the groupControl control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
+        protected void groupControl_DeleteGroupClick( object sender, EventArgs e )
+        {
+            FilterGroup groupControl = sender as FilterGroup;
+            groupControl.Parent.Controls.Remove( groupControl );
+        }
     }
 }
