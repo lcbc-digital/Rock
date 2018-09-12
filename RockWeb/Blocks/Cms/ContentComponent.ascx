@@ -56,26 +56,34 @@
             </Rock:ModalDialog>
         </asp:Panel>
 
-        <%-- Content Component Edit Content Channel Items--%>
+        <%-- Content Component Edit - Content Channel Item(s)--%>
         <asp:Panel ID="pnlContentComponentEditContentChannelItems" runat="server" Visible="false">
-            <Rock:ModalDialog ID="mdContentComponentEditContentChannelItems" runat="server" OnSaveClick="mdContentComponentEditContentChannelItems_SaveClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContentChannelItems" OnCancelScript="clearDialog();">
+            <Rock:ModalDialog ID="mdContentComponentEditContentChannelItems" runat="server" OnSaveClick="mdContentComponentEditContentChannelItems_SaveClick" Title="Content Component - Edit Content" ValidationGroup="vgContentComponentEditContentChannelItem" OnCancelScript="clearDialog();">
                 <Content>
                     <div class="row">
+                        <%-- NOTE: CssClass for pnlContentChannelItemEdit is set in CodeBehind based on AllowMultipleItems Option --%>
                         <asp:Panel ID="pnlContentChannelItemEdit" runat="server" CssClass="col-md-8">
-                            <Rock:RockTextBox ID="tbContentChannelItemTitle" runat="server" Label="Title" Required="true" MaxLength="200" ValidationGroup="vgContentComponentEditContentChannelItems" />
-                            <Rock:DynamicPlaceholder ID="phContentChannelItemsAttributes" runat="server" />
+                            <asp:HiddenField ID="hfContentChannelItemId" runat="server" />
+                            <Rock:RockTextBox ID="tbContentChannelItemTitle" runat="server" Label="Title" Required="true" MaxLength="200" ValidationGroup="vgContentComponentEditContentChannelItem" />
+                            <Rock:HtmlEditor ID="htmlContentChannelItemContent" runat="server" Label="Content" ResizeMaxWidth="720" Height="300" ValidationGroup="vgContentComponentEditContentChannelItem" Toolbar="Full" />
+                            <Rock:DynamicPlaceholder ID="phContentChannelItemAttributes" runat="server" />
                         </asp:Panel>
                         <asp:Panel ID="pnlContentChannelItemsList" runat="server" CssClass="col-md-4">
-                            <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" OnGridReorder="gContentChannelItems_GridReorder">
-                                <Columns>
-                                    <Rock:ReorderField />
-                                    <asp:BoundField DataField="Title" />
-                                    <Rock:DeleteField OnClick="gContentChannelItems_DeleteClick" />
-                                </Columns>
-                            </Rock:Grid>
+                            <div class="grid">
+                                <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" AllowSorting="false" RowItemText="Item" OnRowSelected="gContentChannelItems_RowSelected">
+                                    <Columns>
+                                        <Rock:ReorderField />
+                                        <asp:BoundField DataField="Title" />
+                                        <Rock:DeleteField OnClick="gContentChannelItems_DeleteClick" />
+                                    </Columns>
+                                </Rock:Grid>
+                            </div>
                         </asp:Panel>
                     </div>
 
+                    <div class="actions">
+                        <asp:LinkButton ID="btnSaveItem" runat="server" AccessKey="s" ToolTip="Alt+s" Text="Save Item" CssClass="btn btn-primary" OnClick="btnSaveItem_Click" />
+                    </div>
 
                 </Content>
             </Rock:ModalDialog>

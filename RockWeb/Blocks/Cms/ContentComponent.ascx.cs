@@ -48,6 +48,20 @@ namespace RockWeb.Blocks.Cms
     [IntegerField( "Filter Id", "The data filter that is used to filter items", false, 0, "CustomSetting" )]
     public partial class ContentComponent : RockBlock
     {
+        #region Fields
+
+        /// <summary>
+        /// The output cache key
+        /// </summary>
+        private const string OUTPUT_CACHE_KEY = "Output";
+
+        /// <summary>
+        /// The item cache key
+        /// </summary>
+        private const string ITEM_CACHE_KEY = "Item";
+
+        #endregion Fields
+
         #region Base Control Methods
 
         /// <summary>
@@ -61,6 +75,12 @@ namespace RockWeb.Blocks.Cms
             // this event gets fired after block settings are updated. it's nice to repaint the screen if these settings would alter it
             this.BlockUpdated += Block_BlockUpdated;
             this.AddConfigurationUpdateTrigger( upnlContent );
+
+            gContentChannelItems.DataKeyNames = new string[] { "Id" };
+            gContentChannelItems.Actions.ShowAdd = true;
+            gContentChannelItems.Actions.AddClick += gContentChannelItems_AddClick;
+            gContentChannelItems.GridRebind += gContentChannelItems_GridRebind;
+            gContentChannelItems.GridReorder += gContentChannelItems_GridReorder;
         }
 
         /// <summary>
@@ -73,7 +93,7 @@ namespace RockWeb.Blocks.Cms
 
             if ( !Page.IsPostBack )
             {
-                // TODO
+                ShowView();
             }
 
             CreateDynamicControls();
@@ -98,8 +118,34 @@ namespace RockWeb.Blocks.Cms
         public override List<Control> GetAdministrateControls( bool canConfig, bool canEdit )
         {
             List<Control> configControls = new List<Control>();
-
             if ( canEdit )
+            {
+                LinkButton lbEditContent = new LinkButton();
+                lbEditContent.ID = "lbEditContent";
+                lbEditContent.CssClass = "edit";
+                lbEditContent.ToolTip = "Edit Content";
+                lbEditContent.Click += lbEditContent_Click;
+                configControls.Add( lbEditContent );
+
+                HtmlGenericControl iEditContent = new HtmlGenericControl( "i" );
+                iEditContent.Attributes.Add( "class", "fa fa-pencil-square-o" );
+
+                lbEditContent.Controls.Add( iEditContent );
+                lbEditContent.CausesValidation = false;
+
+                if ( this.GetContentChannel() == null )
+                {
+                    // don't show the Edit option until the block is configured
+                    lbEditContent.Visible = false;
+                }
+
+                // will toggle the block config so they are no longer showing
+                lbEditContent.Attributes["onclick"] = "Rock.admin.pageAdmin.showBlockConfig()";
+
+                ScriptManager.GetCurrent( this.Page ).RegisterAsyncPostBackControl( lbEditContent );
+            }
+
+            if ( canConfig )
             {
                 LinkButton lbConfigure = new LinkButton();
                 lbConfigure.ID = "lbConfigure";
@@ -117,25 +163,6 @@ namespace RockWeb.Blocks.Cms
                 lbConfigure.Attributes["onclick"] = "Rock.admin.pageAdmin.showBlockConfig()";
 
                 ScriptManager.GetCurrent( this.Page ).RegisterAsyncPostBackControl( lbConfigure );
-
-                LinkButton lbEditContent = new LinkButton();
-                lbEditContent.ID = "lbEditContent";
-                lbEditContent.CssClass = "edit";
-                lbEditContent.ToolTip = "Edit Content";
-                lbEditContent.Click += lbEditContent_Click;
-                configControls.Add( lbEditContent );
-
-                HtmlGenericControl iEditContent = new HtmlGenericControl( "i" );
-                iEditContent.Attributes.Add( "class", "fa fa-pencil-square-o" );
-
-                lbEditContent.Controls.Add( iEditContent );
-                lbEditContent.CausesValidation = false;
-
-
-                // will toggle the block config so they are no longer showing
-                lbEditContent.Attributes["onclick"] = "Rock.admin.pageAdmin.showBlockConfig()";
-
-                ScriptManager.GetCurrent( this.Page ).RegisterAsyncPostBackControl( lbEditContent );
             }
 
             var baseAdministrateControls = base.GetAdministrateControls( canConfig, canEdit );
@@ -157,18 +184,107 @@ namespace RockWeb.Blocks.Cms
         #region Shared Methods
 
         /// <summary>
+        /// Shows the view.
+        /// </summary>
+        private void ShowView()
+        {
+            int? outputCacheDuration = GetAttributeValue( "OutputCacheDuration" ).AsIntegerOrNull();
+            int? itemCacheDuration = GetAttributeValue( "ItemCacheDuration" ).AsIntegerOrNull();
+
+            string outputContents = null;
+
+            string outputCacheKey = OUTPUT_CACHE_KEY;
+
+            if ( outputCacheDuration.HasValue && outputCacheDuration.Value > 0 )
+            {
+                outputContents = GetCacheItem( outputCacheKey ) as string;
+            }
+
+            if ( outputContents == null )
+            {
+                var contentChannelItems = GetContentChannelItems( ITEM_CACHE_KEY, itemCacheDuration );
+
+                var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( this.RockPage, this.CurrentPerson, new Rock.Lava.CommonMergeFieldsOptions { GetLegacyGlobalMergeFields = false } );
+                mergeFields.Add( "RockVersion", Rock.VersionInfo.VersionInfo.GetRockProductVersionNumber() );
+
+                mergeFields.Add( "Items", contentChannelItems );
+
+                DefinedValueCache contentComponentTemplate = null;
+                var contentComponentTemplateValueGuid = this.GetAttributeValue( "ContentComponentTemplate" ).AsGuidOrNull();
+                if ( contentComponentTemplateValueGuid.HasValue )
+                {
+                    contentComponentTemplate = DefinedValueCache.Get( contentComponentTemplateValueGuid.Value );
+                }
+
+                if ( contentComponentTemplate == null )
+                {
+                    return;
+                }
+
+                string lavaTemplate = contentComponentTemplate.GetAttributeValue( "DisplayLava" );
+
+                // run LavaMerge on lavaTemplate
+                outputContents = lavaTemplate.ResolveMergeFields( mergeFields );
+
+                // run LavaMerge again in case there is lava in the MergeFields
+                if ( outputContents.HasMergeFields() )
+                {
+                    outputContents = outputContents.ResolveMergeFields( mergeFields );
+                }
+
+                if ( outputCacheDuration.HasValue && outputCacheDuration.Value > 0 )
+                {
+                    string cacheTags = GetAttributeValue( "CacheTags" ) ?? string.Empty;
+                    AddCacheItem( outputCacheKey, outputContents, outputCacheDuration.Value, cacheTags );
+                }
+            }
+
+            lContentOutput.Text = outputContents;
+        }
+
+        /// <summary>
+        /// Gets the content channel items from the Cache or from Database if not cached
+        /// </summary>
+        /// <param name="itemCacheKey">The item cache key.</param>
+        /// <param name="itemCacheDuration">Duration of the item cache.</param>
+        /// <returns></returns>
+        public List<ContentChannelItem> GetContentChannelItems( string itemCacheKey, int? itemCacheDuration )
+        {
+            if ( itemCacheDuration.HasValue && itemCacheDuration.Value > 0 )
+            {
+                var contentChannelItems = GetCacheItem( itemCacheKey ) as List<ContentChannelItem>;
+                if ( contentChannelItems != null )
+                {
+                    return contentChannelItems;
+                }
+            }
+
+            ContentChannelCache contentChannel = GetContentChannel();
+
+            if ( contentChannel == null )
+            {
+                return null;
+            }
+
+            var rockContext = new RockContext();
+            IQueryable<ContentChannelItem> contentChannelItemsQuery = new ContentChannelItemService( rockContext ).Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title );
+
+            // TODO Filter
+
+            return contentChannelItemsQuery.ToList();
+        }
+
+        /// <summary>
         /// Gets the content channel.
         /// </summary>
-        /// <param name="rockContext">The rock context.</param>
         /// <returns></returns>
-        public ContentChannel GetContentChannel( RockContext rockContext )
+        public ContentChannelCache GetContentChannel()
         {
-            ContentChannelService contentChannelService = new ContentChannelService( rockContext );
             Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
-            ContentChannel contentChannel = null;
+            ContentChannelCache contentChannel = null;
             if ( contentChannelGuid.HasValue )
             {
-                contentChannel = contentChannelService.Get( contentChannelGuid.Value );
+                contentChannel = ContentChannelCache.Get( contentChannelGuid.Value );
             }
 
             return contentChannel;
@@ -195,16 +311,15 @@ namespace RockWeb.Blocks.Cms
                 ContentChannelItem contentChannelItem = new ContentChannelItem();
 
                 var rockContext = new RockContext();
-                var contentChannel = this.GetContentChannel( rockContext );
+                ContentChannelCache contentChannel = this.GetContentChannel();
                 if ( contentChannel != null )
                 {
                     contentChannelItem.ContentChannelId = contentChannel.Id;
+                    contentChannelItem.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                    contentChannelItem.LoadAttributes();
+                    phContentChannelItemAttributes.Controls.Clear();
+                    Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
                 }
-
-                contentChannelItem.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
-                contentChannelItem.LoadAttributes();
-                phContentChannelItemsAttributes.Controls.Clear();
-                Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemsAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
             }
         }
 
@@ -222,16 +337,12 @@ namespace RockWeb.Blocks.Cms
             pnlContentComponentConfig.Visible = true;
             mdContentComponentConfig.Show();
 
-            // Component Name (Content Channel Name)
-            var rockContext = new RockContext();
-            ContentChannelService contentChannelService = new ContentChannelService( rockContext );
             Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
-            ContentChannel contentChannel = null;
+            ContentChannelCache contentChannel = null;
             if ( contentChannelGuid.HasValue )
             {
-                contentChannel = contentChannelService.Get( contentChannelGuid.Value );
+                contentChannel = ContentChannelCache.Get( contentChannelGuid.Value );
                 tbComponentName.Text = contentChannel.Name;
-                contentChannel.LoadAttributes();
                 phContentChannelAttributes.Controls.Clear();
                 Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, true, mdContentComponentConfig.ValidationGroup );
             }
@@ -335,6 +446,9 @@ namespace RockWeb.Blocks.Cms
             mdContentComponentConfig.Hide();
             pnlContentComponentConfig.Visible = false;
 
+            RemoveCacheItem( OUTPUT_CACHE_KEY );
+            RemoveCacheItem( ITEM_CACHE_KEY );
+
             // reload the page to make sure we have a clean load
             NavigateToCurrentPageReference();
         }
@@ -350,13 +464,89 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private void lbEditContent_Click( object sender, EventArgs e )
         {
+            ContentChannelCache contentChannel = this.GetContentChannel();
+            if ( contentChannel == null )
+            {
+                // shouldn't happen. This button isn't visible unless there is a contentChannel configured
+                return;
+            }
+
             pnlContentComponentEditContentChannelItems.Visible = true;
             mdContentComponentEditContentChannelItems.Show();
 
+            var allowMultipleContentItems = this.GetAttributeValue( "AllowMultipleContentItems" ).AsBoolean();
+            pnlContentChannelItemsList.Visible = allowMultipleContentItems;
+            pnlContentChannelItemEdit.CssClass = allowMultipleContentItems ? "col-md-8" : "col-md-12";
 
-            /*contentChannelItem.LoadAttributes();
-            phContentChannelItemsAttributes.Controls.Clear();
-            Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemsAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );*/
+            var rockContext = new RockContext();
+            var contentChannelItemId = new ContentChannelItemService( rockContext ).Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title ).Select( a => ( int? ) a.Id ).FirstOrDefault();
+
+            EditContentChannelItem( contentChannelItemId );
+
+            mdContentComponentEditContentChannelItems.SaveButtonText = allowMultipleContentItems ? "Close" : "Save";
+            mdContentComponentEditContentChannelItems.CancelLinkVisible = !allowMultipleContentItems;
+            btnSaveItem.Visible = allowMultipleContentItems;
+        }
+
+        /// <summary>
+        /// Edits the content channel item.
+        /// </summary>
+        /// <param name="contentChannelItemId">The content channel item identifier.</param>
+        private void EditContentChannelItem( int? contentChannelItemId )
+        {
+            var allowMultipleContentItems = this.GetAttributeValue( "AllowMultipleContentItems" ).AsBoolean();
+            var rockContext = new RockContext();
+            ContentChannelItem contentChannelItem = null;
+            if ( contentChannelItemId.HasValue )
+            {
+                contentChannelItem = new ContentChannelItemService( rockContext ).Get( contentChannelItemId.Value );
+            }
+
+            if ( contentChannelItem == null )
+            {
+                contentChannelItem = new ContentChannelItem();
+                var contentChannel = this.GetContentChannel();
+                contentChannelItem.ContentChannelTypeId = contentChannel.ContentChannelTypeId;
+                contentChannelItem.ContentChannelId = contentChannel.Id;
+            }
+
+            hfContentChannelItemId.Value = contentChannelItem.Id.ToString();
+            tbContentChannelItemTitle.Text = contentChannelItem.Title;
+            htmlContentChannelItemContent.Text = contentChannelItem.Content;
+
+            contentChannelItem.LoadAttributes();
+            phContentChannelItemAttributes.Controls.Clear();
+            Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemAttributes, true, mdContentComponentEditContentChannelItems.ValidationGroup );
+
+            if ( allowMultipleContentItems )
+            {
+                BindContentChannelItemsGrid();
+            }
+        }
+
+        /// <summary>
+        /// Binds the content channel items grid.
+        /// </summary>
+        private void BindContentChannelItemsGrid()
+        {
+            ContentChannelCache contentChannel = this.GetContentChannel();
+            if ( contentChannel != null )
+            {
+                IQueryable<ContentChannelItem> contentChannelItemsQuery = new ContentChannelItemService( new RockContext() ).Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title );
+
+                gContentChannelItems.DataSource = contentChannelItemsQuery.ToList();
+                gContentChannelItems.DataBind();
+            }
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnSaveItem control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void btnSaveItem_Click( object sender, EventArgs e )
+        {
+            mdContentComponentEditContentChannelItems_SaveClick( sender, e );
         }
 
         /// <summary>
@@ -366,20 +556,99 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void mdContentComponentEditContentChannelItems_SaveClick( object sender, EventArgs e )
         {
-            // TODO
+            RockContext rockContext = new RockContext();
+            ContentChannelItemService contentChannelItemService = new ContentChannelItemService( rockContext );
+            ContentChannelItem contentChannelItem = null;
+            int contentChannelItemId = hfContentChannelItemId.Value.AsInteger();
+            if ( contentChannelItemId != 0 )
+            {
+                contentChannelItem = contentChannelItemService.Get( contentChannelItemId );
+            }
+
+            if ( contentChannelItem == null )
+            {
+                ContentChannelCache contentChannel = this.GetContentChannel();
+
+                contentChannelItem = new ContentChannelItem();
+                contentChannelItem.ContentChannelTypeId = contentChannel.ContentChannelTypeId;
+                contentChannelItem.ContentChannelId = contentChannel.Id;
+                contentChannelItem.Order = (contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).Max( a => ( int? ) a.Order ) ?? 0) + 1;
+                contentChannelItemService.Add( contentChannelItem );
+            }
+
+            contentChannelItem.LoadAttributes( rockContext );
+            Rock.Attribute.Helper.GetEditValues( phContentChannelItemAttributes, contentChannelItem );
+
+            contentChannelItem.Title = tbContentChannelItemTitle.Text;
+            contentChannelItem.Content = htmlContentChannelItemContent.Text;
+
+            rockContext.SaveChanges();
+            contentChannelItem.SaveAttributeValues( rockContext );
 
             mdContentComponentEditContentChannelItems.Hide();
             pnlContentComponentEditContentChannelItems.Visible = false;
+
+            RemoveCacheItem( OUTPUT_CACHE_KEY );
+            RemoveCacheItem( ITEM_CACHE_KEY );
 
             // reload the page to make sure we have a clean load
             NavigateToCurrentPageReference();
         }
 
-        protected void gContentChannelItems_GridReorder( object sender, Rock.Web.UI.Controls.GridReorderEventArgs e )
+        /// <summary>
+        /// Handles the GridRebind event of the gContentChannelItems control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="Rock.Web.UI.Controls.GridRebindEventArgs"/> instance containing the event data.</param>
+        private void gContentChannelItems_GridRebind( object sender, Rock.Web.UI.Controls.GridRebindEventArgs e )
         {
-            // TODO
+            BindContentChannelItemsGrid();
         }
 
+        /// <summary>
+        /// Handles the AddClick event of the gContentChannelItems control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        private void gContentChannelItems_AddClick( object sender, EventArgs e )
+        {
+            EditContentChannelItem( null );
+        }
+
+        /// <summary>
+        /// Handles the RowSelected event of the gContentChannelItems control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="Rock.Web.UI.Controls.RowEventArgs"/> instance containing the event data.</param>
+        protected void gContentChannelItems_RowSelected( object sender, Rock.Web.UI.Controls.RowEventArgs e )
+        {
+            EditContentChannelItem( e.RowKeyId );
+        }
+
+        /// <summary>
+        /// Handles the GridReorder event of the gContentChannelItems control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="Rock.Web.UI.Controls.GridReorderEventArgs"/> instance containing the event data.</param>
+        protected void gContentChannelItems_GridReorder( object sender, Rock.Web.UI.Controls.GridReorderEventArgs e )
+        {
+            var contentChannel = this.GetContentChannel();
+            if ( contentChannel != null )
+            {
+                var rockContext = new RockContext();
+                ContentChannelItemService contentChannelItemService = new ContentChannelItemService( rockContext );
+                var contentChannelItems = contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title ).ToList();
+                contentChannelItemService.Reorder( contentChannelItems, e.OldIndex, e.NewIndex );
+                rockContext.SaveChanges();
+                BindContentChannelItemsGrid();
+            }
+        }
+
+        /// <summary>
+        /// Handles the DeleteClick event of the gContentChannelItems control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="Rock.Web.UI.Controls.RowEventArgs"/> instance containing the event data.</param>
         protected void gContentChannelItems_DeleteClick( object sender, Rock.Web.UI.Controls.RowEventArgs e )
         {
             // TODO
@@ -396,11 +665,13 @@ namespace RockWeb.Blocks.Cms
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void Block_BlockUpdated( object sender, EventArgs e )
         {
-
+            ShowView();
         }
 
         #endregion
 
 
+
+        
     }
 }
