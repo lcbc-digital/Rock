@@ -86,9 +86,13 @@
     <Compile Include="Migrations\201808302049467_Rollup_0830.Designer.cs">
       <DependentUpon>201808302049467_Rollup_0830.cs</DependentUpon>
     </Compile>
-    <Compile Include="Migrations\201809061747098_AssetStorageSystem.cs" />
-    <Compile Include="Migrations\201809061747098_AssetStorageSystem.Designer.cs">
-      <DependentUpon>201809061747098_AssetStorageSystem.cs</DependentUpon>
+    <Compile Include="Migrations\201809102330278_AssetManager.cs" />
+    <Compile Include="Migrations\201809102330278_AssetManager.Designer.cs">
+      <DependentUpon>201809102330278_AssetManager.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\201809122127196_Rollup_0912.cs" />
+    <Compile Include="Migrations\201809122127196_Rollup_0912.Designer.cs">
+      <DependentUpon>201809122127196_Rollup_0912.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\201809102203185_ContentComponents.cs" />
     <Compile Include="Migrations\201809102203185_ContentComponents.Designer.cs">
@@ -395,8 +399,11 @@
     <EmbeddedResource Include="Migrations\201808302049467_Rollup_0830.resx">
       <DependentUpon>201808302049467_Rollup_0830.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Migrations\201809061747098_AssetStorageSystem.resx">
-      <DependentUpon>201809061747098_AssetStorageSystem.cs</DependentUpon>
+    <EmbeddedResource Include="Migrations\201809102330278_AssetManager.resx">
+      <DependentUpon>201809102330278_AssetManager.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201809122127196_Rollup_0912.resx">
+      <DependentUpon>201809122127196_Rollup_0912.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201809102203185_ContentComponents.resx">
       <DependentUpon>201809102203185_ContentComponents.cs</DependentUpon>

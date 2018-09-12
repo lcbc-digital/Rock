@@ -1,27 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using Rock;
-using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Storage.AssetStorage;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
-using Newtonsoft.Json;
 
-namespace RockWeb.Blocks.Core
+namespace RockWeb.Blocks.Cms
 {
     [DisplayName( "Asset Manager" )]
     [Category( "Core" )]
     [Description( "Manage files stored on a remote server or 3rd party cloud storage" )]
-    public partial class AssetStorageSystemBrowser : RockBlock, IPickerBlock
+    public partial class AssetManager : RockBlock, IPickerBlock
     {
         #region IPicker Implementation
         /// <summary>
@@ -35,7 +29,7 @@ namespace RockWeb.Blocks.Core
         {
             get
             {
-                if ( lbAssetStorageId.Text.IsNullOrWhiteSpace())
+                if ( lbAssetStorageId.Text.IsNullOrWhiteSpace() )
                 {
                     return string.Empty;
                 }
@@ -46,7 +40,7 @@ namespace RockWeb.Blocks.Core
                     if ( cbEvent.Checked == true )
                     {
                         var keyControl = repeaterItem.FindControl( "lbKey" ) as Label;
-                        return string.Format("{{ \"AssetStorageSystemId\": \"{0}\", \"Key\": \"{1}\" }}", lbAssetStorageId.Text, keyControl.Text );
+                        return string.Format( "{{ \"AssetStorageSystemId\": \"{0}\", \"Key\": \"{1}\" }}", lbAssetStorageId.Text, keyControl.Text );
                     }
                 }
 
@@ -147,27 +141,32 @@ namespace RockWeb.Blocks.Core
             fupUpload.SubmitFunctionClientScript = string.Format( submitScriptFormat, lbSelectFolder.ClientID, lbAssetStorageId.ClientID );
 
             string doneScriptFormat = @"// reselect the node to refresh the list of files
-    var selectedFolderPath = $('#{0}').text() != '' ? $('#{0}').text() : $('#{1}').text();
+    var selectedFolderPath =  $('#{1}').text() + ',' + $('#{0}').text();
     var foldersTree = $('.js-folder-treeview .treeview').data('rockTree');
     foldersTree.$el.trigger('rockTree:selected', selectedFolderPath);
 ";
-            //setup javascript for when a file is done uploading
+            // setup javascript for when a file is done uploading
             fupUpload.DoneFunctionClientScript = string.Format( doneScriptFormat, lbSelectFolder.ClientID, lbAssetStorageId.ClientID );
 
             var folderTreeScript = string.Format( @"
 Sys.Application.add_load(function () {{
-    Rock.controls.assetStorageSystemBrowser.initialize({{
-        controlId: '{0}',
-        filesUpdatePanelId: '{1}'
+    Rock.controls.assetManager.initialize({{
+        restUrl: '{0}',
+        controlId: '{1}',
+        filesUpdatePanelId: '{2}'
     }});
 }});
-", pnlAssetStorageSystemBrowser.ClientID, upnlFiles.ClientID );
+",
+this.ResolveUrl( "~/api/AssetStorageSystems/GetChildren?assetFolderId=" ), // {0}
+pnlAssetManager.ClientID, // {1}
+upnlFiles.ClientID // {2}
+);
 
             var scriptInitialized = this.Request.Params[hfScriptInitialized.UniqueID].AsBoolean();
 
             if ( !scriptInitialized )
             {
-                ScriptManager.RegisterStartupScript( this, this.GetType(), string.Format( "AssetStorageSystemBrowser_js_init_{0}", this.ClientID), folderTreeScript, true );
+                ScriptManager.RegisterStartupScript( this, this.GetType(), string.Format( "AssetManager_js_init_{0}", this.ClientID ), folderTreeScript, true );
                 hfScriptInitialized.Value = true.ToString();
                 upnlFolders.Update();
             }
@@ -186,7 +185,6 @@ Sys.Application.add_load(function () {{
 
             if ( !this.IsPostBack || !hasAssetStorageId )
             {
-                BuildFolderTreeView( string.Empty );
                 lbAssetStorageId.Text = "-1";
                 return;
             }
@@ -198,8 +196,8 @@ Sys.Application.add_load(function () {{
             {
                 string previousAssetSelected = string.Empty;
 
-                string[] args = postbackArgs.Split( new char[] { ',' } );
-                foreach( string arg in args )
+                string[] args = postbackArgs.Split( new char[] { '?' } );
+                foreach ( string arg in args )
                 {
                     string[] nameValue = arg.Split( new char[] { ':' } );
                     string eventParam = nameValue[0];
@@ -209,11 +207,8 @@ Sys.Application.add_load(function () {{
                         case "folder-selected":
                             lbSelectFolder.Text = nameValue[1];
                             break;
-                        case "asset-selected":
+                        case "storage-id":
                             lbAssetStorageId.Text = nameValue[1];
-                            break;
-                        case "previous-asset":
-                            previousAssetSelected = nameValue[1];
                             break;
                         case "expanded-folders":
                             lbExpandedFolders.Text = nameValue[1];
@@ -223,86 +218,8 @@ Sys.Application.add_load(function () {{
                     }
                 }
 
-                // TODO: For now we have to rebuild the tree when a post back occurs because when in a modal we were losing expanded state.
-                BuildFolderTreeView( lbAssetStorageId.Text );
                 ListFiles();
             }
-        }
-
-        /// <summary>
-        /// Builds the folder TreeView for the selected asset storage system.
-        /// </summary>
-        private void BuildFolderTreeView( string assetStorageId )
-        {
-            var assetStorageService = new AssetStorageSystemService( new RockContext() );
-            var sb = new StringBuilder();
-
-
-            sb.AppendLine( "<ul id=\"treeview\">" );
-
-            foreach ( var assetStorageSystem in assetStorageService.GetActiveNoTracking() )
-            {
-                var component = assetStorageSystem.GetAssetStorageComponent();
-
-                if ( assetStorageId.IsNullOrWhiteSpace() || ( assetStorageId.AsIntegerOrNull() != assetStorageSystem.Id ) )
-                {
-                    sb.AppendFormat( "<li data-expanded='false' data-id='{0}' data-top='true'><span class=''><i class='{1}'></i> {2}</span></li> \n", assetStorageSystem.Id, component.IconCssClass, assetStorageSystem.Name );
-                    continue;
-                }
-
-                string selected = lbSelectFolder.Text.IsNullOrWhiteSpace() == true ? "selected" : string.Empty;
-                sb.AppendFormat( "<li data-expanded='true' data-id='{0}' ><span class='{1}'><i class='{2}'></i> {3}</span> \n", assetStorageSystem.Id, selected, component.IconCssClass, assetStorageSystem.Name );
-
-                // there is a selected storage provider and this is it, so get the folders
-                assetStorageSystem.LoadAttributes();
-                Asset asset = new Asset { Key = string.Empty, Type = AssetType.Folder };
-
-                sb.Append( CreateFolderNode( assetStorageSystem, component, asset ) );
-                sb.AppendLine( "</li>" );
-            }
-            
-            sb.AppendLine( "</ul>" );
-
-            lblFolders.Text = sb.ToString();
-            upnlFolders.Update();
-        }
-
-        /// <summary>
-        /// Creates the folder node.
-        /// </summary>
-        /// <param name="assetStorageSystem">The asset storage system.</param>
-        /// <param name="component">The component.</param>
-        /// <param name="asset">The asset.</param>
-        /// <returns></returns>
-        private string CreateFolderNode( AssetStorageSystem assetStorageSystem, AssetStorageComponent component, Asset asset )
-        {
-            string dataExpanded = lbExpandedFolders.Text != string.Empty ? lbExpandedFolders.Text.Contains( asset.Key ).ToTrueFalse().ToLower() : "false";
-            string selected = lbSelectFolder.Text == asset.Key ? "selected" : string.Empty;
-
-            var sb = new StringBuilder();
-
-            if ( asset.Name.IsNotNullOrWhiteSpace() )
-            {
-                sb.AppendFormat( "<li data-expanded='{0}' data-id='{1}' ><span class='{2}'><i class='fa fa-folder'></i> {3}</span> \n", dataExpanded, asset.Key, selected, asset.Name );
-            }
-
-            var subFolders = component.ListFoldersInFolder( assetStorageSystem, asset );
-
-            if ( subFolders.Any() )
-            {
-                sb.AppendLine( "<ul>" );
-
-                foreach ( var subFolder in subFolders )
-                {
-                    sb.Append( CreateFolderNode( assetStorageSystem, component, subFolder ) );
-                }
-
-                sb.AppendLine( "</ul>" );
-            }
-
-            sb.AppendLine( "</li>" );
-
-            return sb.ToString();
         }
 
         /// <summary>
@@ -374,10 +291,10 @@ Sys.Application.add_load(function () {{
             AssetStorageSystem assetStorageSystem = GetAssetStorageSystem();
             var component = assetStorageSystem.GetAssetStorageComponent();
 
-            foreach( RepeaterItem file in rptFiles.Items )
+            foreach ( RepeaterItem file in rptFiles.Items )
             {
                 var cbEvent = file.FindControl( "cbSelected" ) as RockCheckBox;
-                if(cbEvent.Checked == true)
+                if ( cbEvent.Checked == true )
                 {
                     var keyControl = file.FindControl( "lbKey" ) as Label;
                     string key = keyControl.Text;
@@ -408,12 +325,22 @@ Sys.Application.add_load(function () {{
         {
             AssetStorageSystem assetStorageSystem = GetAssetStorageSystem();
             var component = assetStorageSystem.GetAssetStorageComponent();
+            var asset = new Asset { Type = AssetType.Folder };
 
-            //TODO: put validation on the textbox, rename will need to use it as well
-            string key = lbSelectFolder.Text + tbCreateFolder.Text + "/";
-            component.CreateFolder( assetStorageSystem, new Asset { Key = key, Type = AssetType.Folder } );
+            // Selecting the root does not put a value for the selected folder, so we have to make sure
+            // if it does not have a value that we use name instead of key so the root folder is used
+            // by the component.
+            if ( lbSelectFolder.Text.IsNotNullOrWhiteSpace() )
+            {
+                asset.Key = lbSelectFolder.Text + tbCreateFolder.Text;
+            }
+            else
+            {
+                asset.Name = tbCreateFolder.Text;
+            }
 
-            BuildFolderTreeView( assetStorageSystem.Id.ToStringSafe() );
+            component.CreateFolder( assetStorageSystem, asset );
+            upnlFolders.Update();
         }
 
         /// <summary>
@@ -428,7 +355,7 @@ Sys.Application.add_load(function () {{
             component.DeleteAsset( assetStorageSystem, new Asset { Key = lbSelectFolder.Text, Type = AssetType.Folder } );
 
             lbSelectFolder.Text = string.Empty;
-            BuildFolderTreeView( assetStorageSystem.Id.ToStringSafe() );
+            upnlFolders.Update();
             // TODO: select the parent of the folder just deleted and list the files
         }
 
@@ -484,6 +411,5 @@ Sys.Application.add_load(function () {{
 
             ListFiles();
         }
-
     }
 }

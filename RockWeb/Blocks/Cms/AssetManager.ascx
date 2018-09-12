@@ -1,8 +1,8 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="AssetStorageSystemBrowser.ascx.cs" Inherits="RockWeb.Blocks.Core.AssetStorageSystemBrowser" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="AssetManager.ascx.cs" Inherits="RockWeb.Blocks.Cms.AssetManager" %>
 
-<asp:Panel ID="pnlAssetStorageSystemBrowser" runat="server" CssClass="picker-wrapper clearfix">
+<asp:Panel ID="pnlAssetManager" runat="server" CssClass="picker-wrapper clearfix">
 
-    <asp:UpdatePanel ID="upnlHiddenValues" runat="server" UpdateMode="Always" style="display:none">
+    <asp:UpdatePanel ID="upnlHiddenValues" runat="server" UpdateMode="Always" style="display:none;" >
         <ContentTemplate>
             <asp:Label ID="lbAssetStorageId" CssClass="js-assetstorage-id" runat="server"></asp:Label><br />
             <asp:Label ID="lbSelectFolder" CssClass="js-selectfolder" runat="server"></asp:Label><br />
@@ -72,7 +72,7 @@
                         </div>
                         <asp:LinkButton ID="lbDownload" runat="server" CssClass="btn btn-xs btn-default js-singleselect aspNetDisabled" OnClick="lbDownload_Click" CausesValidation="false" ToolTip="Download selected file"><i class="fa fa-download"></i> Download</asp:LinkButton>
                         
-                        <asp:LinkButton ID="lbRename" runat="server" CssClass="btn btn-xs btn-default js-singleselect js-renamefile aspNetDisabled" CausesValidation="false" ToolTip="Rename selected file">
+                        <asp:LinkButton ID="lbRename" runat="server" CssClass="btn btn-xs btn-default js-singleselect js-renamefile aspNetDisabled" CausesValidation="false" ToolTip="Rename selected file" OnClientClick="return false;">
                             <i class="fa fa-exchange"></i> Rename
                         </asp:LinkButton>
                         
@@ -82,7 +82,6 @@
                     </div>
 
                     <div class="actions well well-sm js-renamefile-div" id="divRenameFile" style="display: none;">
-
                         <div class="pull-left">
                             <Rock:RockTextBox ID="tbRenameFile" runat="server" CssClass="js-renamefile-input input-sm" />
                         </div>

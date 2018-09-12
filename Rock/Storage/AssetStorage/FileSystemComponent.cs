@@ -85,8 +85,8 @@ namespace Rock.Storage.AssetStorage
         /// <returns></returns>
         public override bool CreateFolder( AssetStorageSystem assetStorageSystem, Asset asset )
         {
-            string rootFolder = FixRootFolder( GetAttributeValue( assetStorageSystem, "RootFolder" ) );
             HasRequirementsFolder( asset );
+            string rootFolder = FixRootFolder( GetAttributeValue( assetStorageSystem, "RootFolder" ) );
             asset.Key = FixKey( asset, rootFolder );
             
             string physicalFolder = FileSystemCompontHttpContext.Server.MapPath( asset.Key );
@@ -474,6 +474,7 @@ namespace Rock.Storage.AssetStorage
             if ( asset.Key.IsNotNullOrWhiteSpace() )
             {
                 invalidChars.Remove( '/' );
+                invalidChars.Remove( '~' );
                 if ( asset.Key.ToList().Any( c => invalidChars.Contains( c ) ) )
                 {
                     throw new Exception( "Invalid characters in Asset.Key" );

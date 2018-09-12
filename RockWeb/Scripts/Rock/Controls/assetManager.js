@@ -3,7 +3,7 @@
   window.Rock = window.Rock || {};
   Rock.controls = Rock.controls || {};
 
-  Rock.controls.assetStorageSystemBrowser = (function () {
+  Rock.controls.assetManager = (function () {
     var exports;
 
     exports = {
@@ -23,7 +23,7 @@
         var $createFolderInput = $assetBrowser.find('.js-createfolder-input');
         var $createFolderCancel = $assetBrowser.find('.js-createfolder-cancel');
 
-        var $deleteFolder = $assetBrowser.find('.js-deletefolder')
+        var $deleteFolder = $assetBrowser.find('.js-deletefolder');
         var $fileCheckboxes = $assetBrowser.find('.js-checkbox');
 
         var $renameFile = $assetBrowser.find('.js-renamefile');
@@ -42,17 +42,17 @@
         }
         var temp2 = $selectFolder.text();
         // Some buttons need a folder selected in order to work
-        if ($selectFolder.text() == "") {
+        if ($selectFolder.text() == "" && $assetStorageId.text() == "-1" ) {
           $('.js-folderselect').addClass('aspNetDisabled');
         }
 
         var folderTreeData = $folderTreeView.data('rockTree');
-
+        
         if (!folderTreeData) {
-          var selectedFolders = $selectFolder.text().split(',');
+          var selectedFolders = [$assetStorageId.text() + ',' + $selectFolder.text()];
           var expandedFolders = $expandedFolders.text().split('||');
-
           $folderTreeView.rockTree({
+            restUrl: options.restUrl,
             selectedIds: selectedFolders,
             expandedIds: expandedFolders
           });
@@ -94,26 +94,20 @@
         }
 
         $folderTreeView.off('rockTree:selected').on('rockTree:selected', function (e, data) {
-          var relativeFolderPath = data;
+          var assetFolderIdParts = unescape(data).split(",");
+          var storageId = assetFolderIdParts[0] || "";
+          var folder = assetFolderIdParts[1] || "";
           var postbackArg;
-          var previousStorageId = $assetStorageId.text();
           var expandedFolders = $expandedFolders.text();
 
           // Some buttons are only active if at least one folder is selected once the tree has been selected then a folder is always selected.
           $('.js-folderselect').removeClass('aspNetDisabled');
 
-          if (data.endsWith("/")) {
-            $selectFolder.text(data);
-            postbackArg = 'asset-selected:' + $assetStorageId.text() + ',folder-selected:' + relativeFolderPath.replace(/\\/g, "/") + ',previous-asset:' + previousStorageId + ',expanded-folders:' + expandedFolders;
-          }
-          else {
-            $assetStorageId.text(data);
-            $selectFolder.text('');
-            $expandedFolders.text('');
-            postbackArg = 'asset-selected:' + data + ',previous-asset:' + previousStorageId + ',folder-selected:,expanded-folders:';
-          }
+          $selectFolder.text(folder);
+          $assetStorageId.text(storageId);
+          postbackArg = 'storage-id:' + storageId + '?folder-selected:' + folder.replace(/\\/g, "/") + '?expanded-folders:' + expandedFolders;
 
-          var jsPostback = "javascript:__doPostBack('" + options.filesUpdatePanelId + "','" +  postbackArg+ "');"
+          var jsPostback = "javascript:__doPostBack('" + options.filesUpdatePanelId + "','" + postbackArg + "');";
 
           window.location = jsPostback;
         });
