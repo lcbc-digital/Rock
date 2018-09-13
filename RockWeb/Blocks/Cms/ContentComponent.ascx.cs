@@ -314,7 +314,7 @@ namespace RockWeb.Blocks.Cms
             IQueryable<ContentChannelItem> contentChannelItemsQuery = contentChannelItemService.Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title );
 
             var allowMultipleContentItems = this.GetAttributeValue( "AllowMultipleContentItems" ).AsBoolean();
-            if (!allowMultipleContentItems)
+            if ( !allowMultipleContentItems )
             {
                 // if allowMultipleContentItems = false, just get the first one
                 // if it was configured for allowMultipleContentItems previously, there might be more, but they won't show until allowMultipleContentItems is enabled again
@@ -365,24 +365,17 @@ namespace RockWeb.Blocks.Cms
                 contentChannel.ContentChannelTypeId = this.ContentChannelTypeId;
                 contentChannel.LoadAttributes();
                 phContentChannelAttributes.Controls.Clear();
-                Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, false, mdContentComponentConfig.ValidationGroup );
+                Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, false, mdContentComponentConfig.ValidationGroup, numberOfColumns:2 );
             }
 
             if ( pnlContentComponentEditContentChannelItems.Visible )
             {
                 // temporarily create so we can get the Attribute UI configured
                 ContentChannelItem contentChannelItem = new ContentChannelItem();
-
-                var rockContext = new RockContext();
-                ContentChannelCache contentChannel = this.GetContentChannel();
-                if ( contentChannel != null )
-                {
-                    contentChannelItem.ContentChannelId = contentChannel.Id;
-                    contentChannelItem.ContentChannelTypeId = this.ContentChannelTypeId;
-                    contentChannelItem.LoadAttributes();
-                    phContentChannelItemAttributes.Controls.Clear();
-                    Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
-                }
+                contentChannelItem.ContentChannelTypeId = this.ContentChannelTypeId;
+                contentChannelItem.LoadAttributes();
+                phContentChannelItemAttributes.Controls.Clear();
+                Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
             }
         }
 
@@ -401,17 +394,21 @@ namespace RockWeb.Blocks.Cms
             mdContentComponentConfig.Show();
 
             Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
+            ContentChannel contentChannel = null;
             if ( contentChannelGuid.HasValue )
             {
-                ContentChannelCache contentChannel = ContentChannelCache.Get( contentChannelGuid.Value );
-                tbComponentName.Text = contentChannel.Name;
-                phContentChannelAttributes.Controls.Clear();
-                Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, true, mdContentComponentConfig.ValidationGroup );
+                contentChannel = new ContentChannelService( new RockContext() ).Get( contentChannelGuid.Value );
             }
-            else
+
+            if ( contentChannel == null )
             {
-                tbComponentName.Text = string.Empty;
+                contentChannel = new ContentChannel { ContentChannelTypeId = this.ContentChannelTypeId };
             }
+
+            tbComponentName.Text = contentChannel.Name;
+            phContentChannelAttributes.Controls.Clear();
+            contentChannel.LoadAttributes();
+            Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, true, mdContentComponentConfig.ValidationGroup, numberOfColumns: 2 );
 
             nbItemCacheDuration.Text = this.GetAttributeValue( "ItemCacheDuration" );
 
@@ -552,7 +549,7 @@ namespace RockWeb.Blocks.Cms
             this.SetAttributeValue( "AllowMultipleContentItems", cbAllowMultipleContentItems.Checked.ToString() );
             this.SetAttributeValue( "OutputCacheDuration", nbOutputCacheDuration.Text );
             this.SetAttributeValue( "CacheTags", cblCacheTags.SelectedValues.AsDelimited( "," ) );
-            if ( dataViewFilter != null)
+            if ( dataViewFilter != null )
             {
                 this.SetAttributeValue( "FilterId", dataViewFilter.Id.ToString() );
             }
@@ -608,8 +605,22 @@ namespace RockWeb.Blocks.Cms
 
             EditContentChannelItem( contentChannelItemId );
 
-            mdContentComponentEditContentChannelItems.SaveButtonText = allowMultipleContentItems ? CONTENT_CHANNEL_ITEM_CLOSE_MODAL_TEXT : CONTENT_CHANNEL_ITEM_SAVE_TEXT;
-            mdContentComponentEditContentChannelItems.CancelLinkVisible = !allowMultipleContentItems;
+            if ( allowMultipleContentItems )
+            {
+                // hide the SaveButton
+                mdContentComponentEditContentChannelItems.SaveButtonText = CONTENT_CHANNEL_ITEM_CLOSE_MODAL_TEXT;
+                mdContentComponentEditContentChannelItems.SaveButtonCausesValidation = false;
+                mdContentComponentEditContentChannelItems.CloseLinkVisible = true;
+                mdContentComponentEditContentChannelItems.CancelLinkVisible = false;
+            }
+            else
+            {
+                mdContentComponentEditContentChannelItems.SaveButtonText = CONTENT_CHANNEL_ITEM_SAVE_TEXT;
+                mdContentComponentEditContentChannelItems.SaveButtonCausesValidation = true;
+                mdContentComponentEditContentChannelItems.CloseLinkVisible = false;
+                mdContentComponentEditContentChannelItems.CancelLinkVisible = true;
+            }
+
             btnSaveItem.Visible = allowMultipleContentItems;
         }
 

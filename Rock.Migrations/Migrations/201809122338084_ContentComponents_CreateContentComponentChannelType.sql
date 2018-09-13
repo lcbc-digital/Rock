@@ -183,7 +183,7 @@ BEGIN
 		0
 		,@TitleSizeAttributeId
 		,'values'
-		,'H1,H2,H3,H4,H5'
+		,'h1^H1,h2^H2,h3^H3,h4^H4,h5^H5'
 		,'A6B49F25-F61A-4B40-8239-73D09E4575D3'
 		)
 END

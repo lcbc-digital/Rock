@@ -27,33 +27,33 @@
                             <Rock:DefinedValuePicker ID="dvpContentComponentTemplate" runat="server" Required="true" Label="Content Component Template" ValidationGroup="vgContentComponentConfig" />
                         </div>
                         <div class="col-md-6">
-                            <Rock:RockCheckBox ID="cbAllowMultipleContentItems" runat="server" Label="Allow Multiple Content Items" />
+                            <Rock:RockCheckBox ID="cbAllowMultipleContentItems" runat="server" Label="Allow Multiple Content Items" Help="Allows you to provide more than one content item." />
                             <Rock:NumberBox ID="nbOutputCacheDuration" runat="server" Label="Output Cache Duration" MinimumValue="0" CssClass="input-width-sm" Help="Number of seconds to cache the resolved output. Only cache the output if you are not personalizing the output based on current user, current page, or any other merge field value." />
                             <Rock:RockCheckBoxList ID="cblCacheTags" runat="server" Label="Cache Tags" Help="Cached tags are used to link cached content so that it can be expired as a group" RepeatDirection="Horizontal" />
                         </div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <Rock:DynamicPlaceholder ID="phContentChannelAttributes" runat="server" />
-                        </div>
-                        <div class="col-md-6">
-                            <Rock:CodeEditor ID="cePreHtml" runat="server" Label="Pre-HTML" Help="HTML Content to render before the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
-                            <Rock:CodeEditor ID="cePostHtml" runat="server" Label="Post-HTML" Help="HTML Content to render after the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label class="control-label">
-                                    Filter
-                                </label>
-                                <asp:HiddenField ID="hfDataFilterId" runat="server" />
-                                <asp:PlaceHolder ID="phFilters" runat="server"></asp:PlaceHolder>
+                    <Rock:PanelWidget ID="pwFilters" runat="server" Title="Filters">
+                        <asp:HiddenField ID="hfDataFilterId" runat="server" />
+                        <asp:PlaceHolder ID="phFilters" runat="server"></asp:PlaceHolder>
+                    </Rock:PanelWidget>
+
+                    <Rock:PanelWidget ID="pwAdvanced" runat="server" Title="Advanced">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <Rock:CodeEditor ID="cePreHtml" runat="server" Label="Pre-HTML" Help="HTML Content to render before the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
+                            </div>
+                            <div class="col-md-6">
+                                <Rock:CodeEditor ID="cePostHtml" runat="server" Label="Post-HTML" Help="HTML Content to render after the block <span class='tip tip-lava'></span>." EditorMode="Lava" EditorTheme="Rock" EditorHeight="100" />
                             </div>
                         </div>
-                    </div>
+                    </Rock:PanelWidget>
 
                 </Content>
             </Rock:ModalDialog>
@@ -73,15 +73,15 @@
                         </asp:Panel>
                         <asp:Panel ID="pnlContentChannelItemsList" runat="server" CssClass="col-md-4">
                             <Rock:ModalAlert ID="mdGridWarning" runat="server" />
-                            <div class="grid">
-                                <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" AllowSorting="false" RowItemText="Item" OnRowSelected="gContentChannelItems_RowSelected">
+                            <Rock:RockControlWrapper ID="rcwContentChannelItems" runat="server" Label="Content Items">
+                                <Rock:Grid ID="gContentChannelItems" runat="server" DisplayType="Light" AllowSorting="false" RowItemText="Item" OnRowSelected="gContentChannelItems_RowSelected" ShowHeader="false">
                                     <Columns>
                                         <Rock:ReorderField />
                                         <asp:BoundField DataField="Title" />
                                         <Rock:DeleteField OnClick="gContentChannelItems_DeleteClick" />
                                     </Columns>
                                 </Rock:Grid>
-                            </div>
+                            </Rock:RockControlWrapper>
                         </asp:Panel>
                     </div>
 
