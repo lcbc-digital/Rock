@@ -1136,6 +1136,40 @@ namespace Rock.Migrations.Migrations {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {% assign channelTitleSize  =  ContentChannel | Attribute:&apos;TitleSize&apos; | Default:&apos;h1&apos; %}
+        ///{% assign channelContentAlignment  =  ContentChannel | Attribute:&apos;ContentAlignment &apos; %}
+        ///{% assign channelForegroundColor  =  ContentChannel | Attribute:&apos;ForegroundColor&apos; %}
+        ///{% assign channelBackgroundColor =  ContentChannel | Attribute:&apos;BackgroundColor&apos; %}
+        ///{% assign contentItemStyle = &apos;&apos; %}
+        ///
+        ///{% for item in Items %}
+        ///    {% if channelBackgroundColor != &apos;&apos; %}
+        ///        {% capture contentItemStyle %}{{ contentItemStyle [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _201809122338084_ContentComponents_AdUnit {
+            get {
+                return ResourceManager.GetString("_201809122338084_ContentComponents_AdUnit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {% assign channelTitleSize  =  ContentChannel | Attribute:&apos;TitleSize&apos; | Default:&apos;h1&apos; %}
+        ///{% assign channelContentAlignment  =  ContentChannel | Attribute:&apos;ContentAlignment &apos; %}
+        ///{% assign channelForegroundColor  =  ContentChannel | Attribute:&apos;ForegroundColor&apos; %}
+        ///{% assign channelBackgroundColor =  ContentChannel | Attribute:&apos;BackgroundColor&apos; %}
+        ///{% assign contentItemStyle = &apos;&apos; %}
+        ///
+        ///{% for item in Items %}
+        ///    {% if channelBackgroundColor != &apos;&apos; %}
+        ///        {% capture contentItemStyle %}{{ contentItemStyle [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _201809122338084_ContentComponents_Card {
+            get {
+                return ResourceManager.GetString("_201809122338084_ContentComponents_Card", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to IF NOT EXISTS (
         ///		SELECT *
         ///		FROM [ContentChannelType]
@@ -1163,9 +1197,43 @@ namespace Rock.Migrations.Migrations {
         ///		FROM [ContentChannelType]
         ///		WHERE Guid = &apos;BCFE276 [rest of string was truncated]&quot;;.
         /// </summary>
-        public static string _201809102203185_ContentComponents_CreateContentComponentChannelType {
+        public static string _201809122338084_ContentComponents_CreateContentComponentChannelType {
             get {
-                return ResourceManager.GetString("_201809102203185_ContentComponents_CreateContentComponentChannelType", resourceCulture);
+                return ResourceManager.GetString("_201809122338084_ContentComponents_CreateContentComponentChannelType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {% assign channelTitleSize  =  ContentChannel | Attribute:&apos;TitleSize&apos; | Default:&apos;h1&apos; %}
+        ///{% assign channelContentAlignment  =  ContentChannel | Attribute:&apos;ContentAlignment &apos; %}
+        ///{% assign channelForegroundColor  =  ContentChannel | Attribute:&apos;ForegroundColor&apos; %}
+        ///{% assign channelBackgroundColor =  ContentChannel | Attribute:&apos;BackgroundColor&apos; %}
+        ///{% assign contentItemStyle = &apos;&apos; %}
+        ///
+        ///{% for item in Items %}
+        ///    {% if channelBackgroundColor != &apos;&apos; %}
+        ///        {% capture contentItemStyle %}{{ contentItemStyle [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _201809122338084_ContentComponents_Hero {
+            get {
+                return ResourceManager.GetString("_201809122338084_ContentComponents_Hero", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {% assign channelTitleSize  =  ContentChannel | Attribute:&apos;TitleSize&apos; | Default:&apos;h1&apos; %}
+        ///{% assign channelContentAlignment  =  ContentChannel | Attribute:&apos;ContentAlignment &apos; %}
+        ///{% assign channelForegroundColor  =  ContentChannel | Attribute:&apos;ForegroundColor&apos; %}
+        ///{% assign channelBackgroundColor =  ContentChannel | Attribute:&apos;BackgroundColor&apos; %}
+        ///{% assign contentItemStyle = &apos;&apos; %}
+        ///
+        ///{% for item in Items %}
+        ///    {% if channelBackgroundColor != &apos;&apos; %}
+        ///        {% capture contentItemStyle %}{{ contentItemStyle [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string _201809122338084_ContentComponents_SideBySide {
+            get {
+                return ResourceManager.GetString("_201809122338084_ContentComponents_SideBySide", resourceCulture);
             }
         }
     }

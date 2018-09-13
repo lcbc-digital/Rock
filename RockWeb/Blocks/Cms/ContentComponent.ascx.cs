@@ -42,7 +42,7 @@ namespace RockWeb.Blocks.Cms
 
     [ContentChannelField( "Content Channel", category: "CustomSetting" )]
 
-    [IntegerField( "Item Cache Duration", "Number of seconds to cache the content item specified by the parameter.", false, 3600, "CustomSetting", 0, "ItemCacheDuration" )]
+    [IntegerField( "Item Cache Duration", "Number of seconds to cache the content item specified by the parameter.", false, 0, "CustomSetting", 0, "ItemCacheDuration" )]
     [DefinedValueField( Rock.SystemGuid.DefinedType.CONTENT_COMPONENT_TEMPLATE, "Content Component Template" )]
     [BooleanField( "Allow Multiple Content Items", category: "CustomSetting" )]
     [IntegerField( "Output Cache Duration", "Number of seconds to cache the resolved output. Only cache the output if you are not personalizing the output based on current user, current page, or any other merge field value.", required: false, key: "OutputCacheDuration", category: "CustomSetting" )]
@@ -72,6 +72,11 @@ namespace RockWeb.Blocks.Cms
         /// The Text of btnSaveItem when in 'AllowMultipleContentItems' mode
         /// </summary>
         private const string CONTENT_CHANNEL_ITEM_CLOSE_MODAL_TEXT = "Close";
+
+        /// <summary>
+        /// The content channel type identifier
+        /// </summary>
+        private int ContentChannelTypeId = new ContentChannelTypeService( new RockContext() ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
 
         #endregion Fields
 
@@ -120,12 +125,8 @@ namespace RockWeb.Blocks.Cms
         {
             base.LoadViewState( savedState );
 
-            var contentChannel = this.GetContentChannel();
-            if ( contentChannel != null )
-            {
-                var rockContext = new RockContext();
-                CreateFilterControl( contentChannel, DataViewFilter.FromJson( ViewState["DataViewFilter"].ToString() ), false, rockContext );
-            }
+            var rockContext = new RockContext();
+            CreateFilterControl( this.ContentChannelTypeId, DataViewFilter.FromJson( ViewState["DataViewFilter"].ToString() ), false, rockContext );
         }
 
         /// <summary>
@@ -249,6 +250,7 @@ namespace RockWeb.Blocks.Cms
                 mergeFields.Add( "RockVersion", Rock.VersionInfo.VersionInfo.GetRockProductVersionNumber() );
 
                 mergeFields.Add( "Items", contentChannelItems );
+                mergeFields.Add( "ContentChannel", this.GetContentChannel() );
 
                 DefinedValueCache contentComponentTemplate = null;
                 var contentComponentTemplateValueGuid = this.GetAttributeValue( "ContentComponentTemplate" ).AsGuidOrNull();
@@ -360,7 +362,7 @@ namespace RockWeb.Blocks.Cms
             {
                 // temporarily create so we can get the Attribute UI configured
                 var contentChannel = new ContentChannel();
-                contentChannel.ContentChannelTypeId = new ContentChannelTypeService( new RockContext() ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                contentChannel.ContentChannelTypeId = this.ContentChannelTypeId;
                 contentChannel.LoadAttributes();
                 phContentChannelAttributes.Controls.Clear();
                 Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, false, mdContentComponentConfig.ValidationGroup );
@@ -376,7 +378,7 @@ namespace RockWeb.Blocks.Cms
                 if ( contentChannel != null )
                 {
                     contentChannelItem.ContentChannelId = contentChannel.Id;
-                    contentChannelItem.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                    contentChannelItem.ContentChannelTypeId = this.ContentChannelTypeId;
                     contentChannelItem.LoadAttributes();
                     phContentChannelItemAttributes.Controls.Clear();
                     Rock.Attribute.Helper.AddEditControls( contentChannelItem, phContentChannelItemAttributes, false, mdContentComponentEditContentChannelItems.ValidationGroup );
@@ -399,10 +401,9 @@ namespace RockWeb.Blocks.Cms
             mdContentComponentConfig.Show();
 
             Guid? contentChannelGuid = this.GetAttributeValue( "ContentChannel" ).AsGuidOrNull();
-            ContentChannelCache contentChannel = null;
             if ( contentChannelGuid.HasValue )
             {
-                contentChannel = ContentChannelCache.Get( contentChannelGuid.Value );
+                ContentChannelCache contentChannel = ContentChannelCache.Get( contentChannelGuid.Value );
                 tbComponentName.Text = contentChannel.Name;
                 phContentChannelAttributes.Controls.Clear();
                 Rock.Attribute.Helper.AddEditControls( contentChannel, phContentChannelAttributes, true, mdContentComponentConfig.ValidationGroup );
@@ -436,6 +437,7 @@ namespace RockWeb.Blocks.Cms
             // Cache Tags
             cblCacheTags.DataSource = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.CACHE_TAGS.AsGuid() ).DefinedValues.Select( v => v.Value ).ToList();
             cblCacheTags.DataBind();
+            cblCacheTags.Visible = cblCacheTags.Items.Count > 0;
             string[] selectedCacheTags = this.GetAttributeValue( "CacheTags" ).SplitDelimitedValues();
             foreach ( ListItem cacheTag in cblCacheTags.Items )
             {
@@ -465,7 +467,7 @@ namespace RockWeb.Blocks.Cms
                 filter.ExpressionType = FilterExpressionType.GroupAll;
             }
 
-            CreateFilterControl( contentChannel, filter, true, rockContext );
+            CreateFilterControl( this.ContentChannelTypeId, filter, true, rockContext );
         }
 
         /// <summary>
@@ -478,31 +480,33 @@ namespace RockWeb.Blocks.Cms
             var rockContext = new RockContext();
 
             var dataViewFilter = ReportingHelper.GetFilterFromControls( phFilters );
-
-            // update Guids since we are creating a new dataFilter and children and deleting the old one
-            SetNewDataFilterGuids( dataViewFilter );
-
-            if ( !Page.IsValid )
+            if ( dataViewFilter != null )
             {
-                return;
+                // update Guids since we are creating a new dataFilter and children and deleting the old one
+                SetNewDataFilterGuids( dataViewFilter );
+
+                if ( !Page.IsValid )
+                {
+                    return;
+                }
+
+                if ( !dataViewFilter.IsValid )
+                {
+                    // Controls will render the error messages                    
+                    return;
+                }
+
+                DataViewFilterService dataViewFilterService = new DataViewFilterService( rockContext );
+
+                int? dataViewFilterId = hfDataFilterId.Value.AsIntegerOrNull();
+                if ( dataViewFilterId.HasValue )
+                {
+                    var oldDataViewFilter = dataViewFilterService.Get( dataViewFilterId.Value );
+                    DeleteDataViewFilter( oldDataViewFilter, dataViewFilterService );
+                }
+
+                dataViewFilterService.Add( dataViewFilter );
             }
-
-            if ( !dataViewFilter.IsValid )
-            {
-                // Controls will render the error messages                    
-                return;
-            }
-
-            DataViewFilterService dataViewFilterService = new DataViewFilterService( rockContext );
-
-            int? dataViewFilterId = hfDataFilterId.Value.AsIntegerOrNull();
-            if ( dataViewFilterId.HasValue )
-            {
-                var oldDataViewFilter = dataViewFilterService.Get( dataViewFilterId.Value );
-                DeleteDataViewFilter( oldDataViewFilter, dataViewFilterService );
-            }
-
-            dataViewFilterService.Add( dataViewFilter );
 
             rockContext.SaveChanges();
 
@@ -518,7 +522,7 @@ namespace RockWeb.Blocks.Cms
             if ( contentChannel == null )
             {
                 contentChannel = new ContentChannel();
-                contentChannel.ContentChannelTypeId = new ContentChannelTypeService( rockContext ).GetId( Rock.SystemGuid.ContentChannelType.CONTENT_COMPONENT.AsGuid() ) ?? 0;
+                contentChannel.ContentChannelTypeId = this.ContentChannelTypeId;
                 contentChannelService.Add( contentChannel );
             }
 
@@ -548,7 +552,14 @@ namespace RockWeb.Blocks.Cms
             this.SetAttributeValue( "AllowMultipleContentItems", cbAllowMultipleContentItems.Checked.ToString() );
             this.SetAttributeValue( "OutputCacheDuration", nbOutputCacheDuration.Text );
             this.SetAttributeValue( "CacheTags", cblCacheTags.SelectedValues.AsDelimited( "," ) );
-            this.SetAttributeValue( "FilterId", dataViewFilter.Id.ToString() );
+            if ( dataViewFilter != null)
+            {
+                this.SetAttributeValue( "FilterId", dataViewFilter.Id.ToString() );
+            }
+            else
+            {
+                this.SetAttributeValue( "FilterId", null );
+            }
 
             this.SaveAttributeValues();
 
@@ -718,6 +729,8 @@ namespace RockWeb.Blocks.Cms
 
             RemoveCacheItem( OUTPUT_CACHE_KEY );
             RemoveCacheItem( ITEM_CACHE_KEY );
+
+            BindContentChannelItemsGrid();
         }
 
         /// <summary>
@@ -803,6 +816,12 @@ namespace RockWeb.Blocks.Cms
             }
 
             BindContentChannelItemsGrid();
+
+            // edit whatever the first item is, or create a new one
+            var contentChannel = GetContentChannel();
+            var contentChannelItemId = new ContentChannelItemService( rockContext ).Queryable().Where( a => a.ContentChannelId == contentChannel.Id ).OrderBy( a => a.Order ).ThenBy( a => a.Title ).Select( a => ( int? ) a.Id ).FirstOrDefault();
+
+            EditContentChannelItem( contentChannelItemId );
         }
 
         #endregion
@@ -828,17 +847,16 @@ namespace RockWeb.Blocks.Cms
         /// <summary>
         /// Creates the filter control.
         /// </summary>
-        /// <param name="channel">The channel.</param>
+        /// <param name="contentChannelTypeId">The content channel type identifier.</param>
         /// <param name="filter">The filter.</param>
         /// <param name="setSelection">if set to <c>true</c> [set selection].</param>
         /// <param name="rockContext">The rock context.</param>
-        private void CreateFilterControl( ContentChannelCache channel, DataViewFilter filter, bool setSelection, RockContext rockContext )
+        private void CreateFilterControl( int contentChannelTypeId, DataViewFilter filter, bool setSelection, RockContext rockContext )
         {
             phFilters.Controls.Clear();
-            var contentChannel = this.GetContentChannel();
-            if ( filter != null && contentChannel != null )
+            if ( filter != null )
             {
-                CreateFilterControl( phFilters, filter, setSelection, rockContext, contentChannel );
+                CreateFilterControl( phFilters, filter, setSelection, rockContext, contentChannelTypeId );
             }
         }
 
@@ -849,13 +867,13 @@ namespace RockWeb.Blocks.Cms
         /// <param name="filter">The filter.</param>
         /// <param name="setSelection">if set to <c>true</c> [set selection].</param>
         /// <param name="rockContext">The rock context.</param>
-        private void CreateFilterControl( Control parentControl, DataViewFilter filter, bool setSelection, RockContext rockContext, ContentChannelCache contentChannel )
+        private void CreateFilterControl( Control parentControl, DataViewFilter filter, bool setSelection, RockContext rockContext, int contentChannelTypeId )
         {
             try
             {
                 if ( filter.ExpressionType == FilterExpressionType.Filter )
                 {
-                    var filterControl = AddFilterField( parentControl, filter.Guid, contentChannel );
+                    var filterControl = AddFilterField( parentControl, filter.Guid, contentChannelTypeId );
 
                     if ( filter.EntityTypeId.HasValue )
                     {
@@ -897,7 +915,7 @@ namespace RockWeb.Blocks.Cms
                     groupControl.DeleteGroupClick += groupControl_DeleteGroupClick;
                     foreach ( var childFilter in filter.ChildFilters )
                     {
-                        CreateFilterControl( groupControl, childFilter, setSelection, rockContext, contentChannel );
+                        CreateFilterControl( groupControl, childFilter, setSelection, rockContext, contentChannelTypeId );
                     }
                 }
             }
@@ -949,24 +967,24 @@ namespace RockWeb.Blocks.Cms
         protected void groupControl_AddFilterClick( object sender, EventArgs e )
         {
             FilterGroup groupControl = sender as FilterGroup;
-            FilterField filterField = AddFilterField( groupControl, Guid.NewGuid(), this.GetContentChannel() );
+            FilterField filterField = AddFilterField( groupControl, Guid.NewGuid(), this.ContentChannelTypeId );
             filterField.Expanded = true;
         }
 
         /// <summary>
         /// Creates the filter field.
         /// </summary>
+        /// <param name="parentControl">The parent control.</param>
         /// <param name="dataViewFilterGuid">The data view filter unique identifier.</param>
-        /// <param name="propertyFieldEntityFieldsOverride">The property field entity fields override.</param>
+        /// <param name="contentChannelTypeId">The content channel type identifier.</param>
         /// <returns></returns>
-        private FilterField AddFilterField( Control parentControl, Guid dataViewFilterGuid, ContentChannelCache contentChannel )
+        private FilterField AddFilterField( Control parentControl, Guid dataViewFilterGuid, int contentChannelTypeId )
         {
             FilterField filterField = new FilterField();
 
             filterField.Entity = new ContentChannelItem
             {
-                ContentChannelId = contentChannel.Id,
-                ContentChannelTypeId = contentChannel.ContentChannelTypeId
+                ContentChannelTypeId = contentChannelTypeId
             };
 
             filterField.DataViewFilterGuid = dataViewFilterGuid;
