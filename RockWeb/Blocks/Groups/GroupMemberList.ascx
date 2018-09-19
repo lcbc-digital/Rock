@@ -54,7 +54,7 @@
                                 <Rock:DateRangePicker ID="drpDateAdded" runat="server" Label="Date Added" />
                                 <asp:PlaceHolder ID="phAttributeFilters" runat="server" />
                             </Rock:GridFilter>
-                            <Rock:Grid ID="gGroupMembers" runat="server" DisplayType="Full" AllowSorting="true" OnRowSelected="gGroupMembers_Edit" CssClass="js-grid-group-members" OnRowDataBound="gGroupMembers_RowDataBound" ExportSource="ColumnOutput" >
+                            <Rock:Grid ID="gGroupMembers" runat="server" DisplayType="Full" AllowSorting="true" OnRowSelected="gGroupMembers_Edit" CssClass="js-grid-group-members" OnRowDataBound="gGroupMembers_RowDataBound" ExportSource="ColumnOutput" OnRowCreated="gGroupMembers_RowCreated" >
                                 <Columns>
                                     <Rock:SelectField></Rock:SelectField>
                                     <Rock:RockLiteralField ID="lExportFullName" HeaderText="Name" Visible="false" ExcelExportBehavior="AlwaysInclude" />
@@ -72,8 +72,8 @@
                                     <Rock:DateField DataField="DateTimeAdded" HeaderText="Date Added" SortExpression="DateTimeAdded" />
 
                                     <%-- Fields that are only shown when ShowAttendance is enabled --%>
-                                    <Rock:RockLiteralField ID="lFirstAttended" HeaderText="First Attended" SortExpression="FirstAttended" />
-                                    <Rock:RockLiteralField ID="lLastAttended" HeaderText="Last Attended" SortExpression="LastAttended" />
+                                    <Rock:RockLiteralField ID="lFirstAttended" HeaderText="First Attended" />
+                                    <Rock:RockLiteralField ID="lLastAttended" HeaderText="Last Attended" />
 
                                     <Rock:RockBoundField DataField="Note" HeaderText="Note" SortExpression="Note" ItemStyle-CssClass="small" />
 

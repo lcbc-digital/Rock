@@ -62,6 +62,8 @@ namespace RockWeb.Blocks.Groups
         private GroupTypeCache _groupTypeCache = null;
         private bool _canView = false;
         private Dictionary<int, List<GroupMemberRegistrationItem>> _groupMembersWithRegistrations = new Dictionary<int, List<GroupMemberRegistrationItem>>();
+        private int? _homePhoneTypeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
+        private int? _cellPhoneTypeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() );
 
         private class GroupMemberRegistrationItem
         {
@@ -261,6 +263,7 @@ namespace RockWeb.Blocks.Groups
         private readonly string _photoFormat = "<div class=\"photo-icon photo-round photo-round-xs pull-left margin-r-sm js-person-popover\" personid=\"{0}\" data-original=\"{1}&w=50\" style=\"background-image: url( '{2}' ); background-size: cover; background-repeat: no-repeat;\"></div>";
 
         private bool _isExporting = false;
+        private bool _showAttendance = false;
         private bool _hasGroupRequirements = false;
         private HashSet<int> _groupMemberIdsThatLackGroupRequirements = new HashSet<int>();
         private bool _showDateAdded = false;
@@ -268,9 +271,35 @@ namespace RockWeb.Blocks.Groups
 
         private bool _showPersonsThatHaventSigned = false;
         private HashSet<int> _personIdsThatHaveSigned = new HashSet<int>();
-        private RockContext _getExportDataRockContext = null;
         private Dictionary<int, Location> _personIdHomeLocationLookup = null;
+
+        // dictionary of PhoneNumbers' FormattedNumber by PersonId and NumberTypeValueId
+        private Dictionary<int, Dictionary<int, string>> _personIdPhoneNumberTypePhoneNumberLookup = null;
+
         private Dictionary<int, DateRange> _personIdAttendanceFirstLastLookup = null;
+
+        // cache a hash of GroupTypeRoleIds that have GroupSync enabled for the group type (GridRowDataBound uses this)
+        private HashSet<int> _groupTypeRoleIdsWithGroupSync = null;
+
+        /// <summary>
+        /// Handles the RowCreated event of the gGroupMembers control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        protected void gGroupMembers_RowCreated( object sender, GridViewRowEventArgs e )
+        {
+            if ( e.Row.RowType != DataControlRowType.DataRow )
+            {
+                return;
+            }
+
+            GroupMember groupMember = e.Row.DataItem as GroupMember;
+            if ( groupMember != null )
+            {
+                // We already have the Group fetched, so set the Group here so it doesn't have to be loaded from the database for each row (this helps when loading attributes)
+                groupMember.Group = _group;
+            }
+        }
 
         /// <summary>
         /// Handles the RowDataBound event of the gGroupMembers control.
@@ -334,17 +363,27 @@ namespace RockWeb.Blocks.Groups
 
             if ( _isExporting )
             {
+                var personPhoneNumbers = _personIdPhoneNumberTypePhoneNumberLookup.GetValueOrNull( groupMember.PersonId );
 
+                if ( personPhoneNumbers != null )
+                {
+                    var lExportHomePhone = e.Row.FindControl( _exportHomePhoneField.ID ) as Literal;
+                    var lExportCellPhone = e.Row.FindControl( _exportCellPhoneField.ID ) as Literal;
 
-                var lExportHomePhone = e.Row.FindControl( _exportHomePhoneField.ID ) as Literal;
-                var lExportCellPhone = e.Row.FindControl( _exportCellPhoneField.ID ) as Literal;
+                    if ( _homePhoneTypeId.HasValue )
+                    {
+                        lExportHomePhone.Text = personPhoneNumbers.GetValueOrNull( _homePhoneTypeId.Value );
+                    }
 
-                _getExportDataRockContext = _getExportDataRockContext ?? new RockContext();
+                    if ( _cellPhoneTypeId.HasValue )
+                    {
+                        lExportCellPhone.Text = personPhoneNumbers.GetValueOrNull( _cellPhoneTypeId.Value );
+                    }
+                }
 
                 var homeLocation = _personIdHomeLocationLookup.GetValueOrNull( groupMember.PersonId );
                 if ( homeLocation != null )
                 {
-
                     var lExportHomeAddress = e.Row.FindControl( _exportHomeAddressField.ID ) as Literal;
                     var lExportLatitude = e.Row.FindControl( _exportLatitudeField.ID ) as Literal;
                     var lExportLongitude = e.Row.FindControl( _exportLongitude.ID ) as Literal;
@@ -354,7 +393,6 @@ namespace RockWeb.Blocks.Groups
                     lExportLongitude.Text = homeLocation.Longitude.ToString();
                 }
             }
-
 
             var lNameWithHtml = e.Row.FindControl( _nameWithHtmlField.ID ) as Literal;
             if ( lNameWithHtml != null )
@@ -416,7 +454,7 @@ namespace RockWeb.Blocks.Groups
 
                 if ( buttonIcon != null )
                 {
-                    if ( _group.GroupSyncs.Any( a => a.GroupTypeRoleId == groupMember.GroupRoleId ) )
+                    if ( _groupTypeRoleIdsWithGroupSync.Contains( groupMember.GroupRoleId ) )
                     {
                         deleteButton.Enabled = false;
                         buttonIcon.Attributes["class"] = "fa fa-exchange";
@@ -441,6 +479,19 @@ namespace RockWeb.Blocks.Groups
             if ( _inactiveStatus != null && groupMember.GroupMemberStatus == GroupMemberStatus.Inactive )
             {
                 e.Row.AddCssClass( "is-inactive" );
+            }
+
+            if ( _showAttendance )
+            {
+                var lFirstAttended = e.Row.FindControl( _firstAttendedField.ID ) as Literal;
+                var lLastAttended = e.Row.FindControl( _lastAttendedField.ID ) as Literal;
+
+                var attendanceFirstLastRecord = _personIdAttendanceFirstLastLookup.GetValueOrNull( groupMember.PersonId );
+                if ( attendanceFirstLastRecord != null )
+                {
+                    lFirstAttended.Text = attendanceFirstLastRecord.Start.ToString();
+                    lLastAttended.Text = attendanceFirstLastRecord.End.ToString();
+                }
             }
         }
 
@@ -914,7 +965,6 @@ namespace RockWeb.Blocks.Groups
             _deleteField = new DeleteField();
             _deleteField.Click += DeleteOrArchiveGroupMember_Click;
             gGroupMembers.Columns.Add( _deleteField );
-
         }
 
         /// <summary>
@@ -1142,6 +1192,8 @@ namespace RockWeb.Blocks.Groups
             _exportLatitudeField = gGroupMembers.ColumnsOfType<RockLiteralField>().Where( a => a.ID == "lExportLatitude" ).FirstOrDefault();
             _exportLongitude = gGroupMembers.ColumnsOfType<RockLiteralField>().Where( a => a.ID == "lExportLongitude" ).FirstOrDefault();
 
+            _groupTypeRoleIdsWithGroupSync = new HashSet<int>( _group.GroupSyncs.Select( a => a.GroupTypeRoleId ).ToList() );
+
             var rockContext = new RockContext();
 
             if ( _group != null &&
@@ -1167,7 +1219,10 @@ namespace RockWeb.Blocks.Groups
             }
 
             GroupMemberService groupMemberService = new GroupMemberService( rockContext );
-            var qry = groupMemberService.Queryable( true ).Include( a => a.GroupRole ).Include( a => a.Person ).AsNoTracking()
+            var qry = groupMemberService.Queryable( true )
+                .Include( a => a.GroupRole )
+                .Include( a => a.Person )
+                .AsNoTracking()
                 .Where( m => m.GroupId == _group.Id );
 
             if ( isCommunication )
@@ -1321,9 +1376,6 @@ namespace RockWeb.Blocks.Groups
 
             gGroupMembers.EntityTypeId = EntityTypeCache.Get( Rock.SystemGuid.EntityType.GROUP_MEMBER.AsGuid() ).Id;
 
-            var homePhoneType = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME );
-            var cellPhoneType = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE );
-
             if ( isExporting )
             {
                 var familyGroupTypeId = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY ).Id;
@@ -1336,6 +1388,20 @@ namespace RockWeb.Blocks.Groups
                         m.Group
                     } );
 
+                // preload all phonenumbers for the person in the qry in one query so that we don't have to fetch them individually
+                _personIdPhoneNumberTypePhoneNumberLookup = new PhoneNumberService( rockContext ).Queryable()
+                    .Where( n => personFamily.Any( x => x.PersonId == n.PersonId ) && n.NumberTypeValueId.HasValue )
+                    .GroupBy( a => new { a.PersonId, a.NumberTypeValueId } )
+                    .Select( a => new
+                    {
+                        a.Key.PersonId,
+                        a.Key.NumberTypeValueId,
+                        NumberFormatted = a.Select( x => x.NumberFormatted ).FirstOrDefault()
+                    } )
+                    .GroupBy( a => a.PersonId )
+                    .ToDictionary( k => k.Key, v => v.ToDictionary( xk => xk.NumberTypeValueId.Value, xv => xv.NumberFormatted ) );
+
+                // preload all mapped home locations for the person in the qry in one query so that we don't have to fetch them individually
                 Guid? homeAddressGuid = Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuidOrNull();
                 if ( homeAddressGuid.HasValue )
                 {
@@ -1382,7 +1448,6 @@ namespace RockWeb.Blocks.Groups
                 } )
                 .ToDictionary( r => r.GroupMemberId, r => r.Registrations );
 
-
             if ( _registrationField != null )
             {
                 _registrationField.Visible = _groupMembersWithRegistrations.Any();
@@ -1401,10 +1466,10 @@ namespace RockWeb.Blocks.Groups
             }
 
             _personIdAttendanceFirstLastLookup = new Dictionary<int, DateRange>();
-            bool showAttendance = GetAttributeValue( SHOW_FIRST_LAST_ATTENDANCE_KEY ).AsBoolean() && _groupTypeCache.TakesAttendance;
-            gGroupMembers.ColumnsOfType<RockLiteralField>().First( a => a.ID == "lFirstAttended" ).Visible = showAttendance;
-            gGroupMembers.ColumnsOfType<RockLiteralField>().First( a => a.ID == "lLastAttended" ).Visible = showAttendance;
-            if ( showAttendance )
+            _showAttendance = GetAttributeValue( SHOW_FIRST_LAST_ATTENDANCE_KEY ).AsBoolean() && _groupTypeCache.TakesAttendance;
+            _firstAttendedField.Visible = _showAttendance;
+            _lastAttendedField.Visible = _showAttendance;
+            if ( _showAttendance )
             {
                 foreach ( var attendance in new AttendanceService( rockContext )
                     .Queryable().AsNoTracking()
@@ -1429,126 +1494,6 @@ namespace RockWeb.Blocks.Groups
 
             _showNoteColumn = GetAttributeValue( "ShowNoteColumn" ).AsBoolean();
             gGroupMembers.ColumnsOfType<RockBoundField>().First( a => a.DataField == "Note" ).Visible = _showNoteColumn;
-
-            rockContext.SqlLogging( true );
-            /*
-            var dataSource = groupMembersList.Select( m =>
-            {
-                var groupMemberDataRow = new GroupMemberDataRow
-                {
-                    Id = m.Id,
-                    Guid = m.Guid,
-                    PersonId = m.PersonId,
-                    NickName = m.Person.NickName,
-                    LastName = m.Person.LastName,
-                    Gender = m.Person.Gender.ToString(),
-                    BirthDate = m.Person.BirthDate,
-                    Age = m.Person.Age,
-                    ConnectionStatusValueId = m.Person.ConnectionStatusValueId,
-                    DateTimeAdded = m.DateTimeAdded,
-                    Note = m.Note,
-                    Email = m.Person.Email,
-                    GroupRole = m.GroupRole.Name,
-                    GroupMemberStatus = m.GroupMemberStatus,
-                    RecordStatusValueId = m.Person.RecordStatusValueId,
-                    IsDeceased = m.Person.IsDeceased,
-                    MaritalStatusValueId = m.Person.MaritalStatusValueId,
-                    GroupRoleId = m.GroupRoleId,
-                    IsArchived = m.IsArchived
-                };
-
-                if ( isExporting )
-                {
-                    groupMemberDataRow.Name = m.Person.LastName + ", " + m.Person.NickName;
-                }
-                else
-                {
-                    groupMemberDataRow.Name = string.Format( photoFormat, m.PersonId, m.Person.PhotoUrl, ResolveUrl( "~/Assets/Images/person-no-photo-unknown.svg" ) )
-                                + m.Person.NickName + " " + m.Person.LastName
-                        + ( !string.IsNullOrWhiteSpace( m.Person.TopSignalColor ) ? " " + m.Person.GetSignalMarkup() : string.Empty )
-                        + ( ( hasGroupRequirements && groupMemberIdsThatLackGroupRequirements.Contains( m.Id ) )
-                            ? " <i class='fa fa-exclamation-triangle text-warning'></i>"
-                            : string.Empty )
-                        + ( ( !showNoteColumn && !string.IsNullOrEmpty( m.Note ) )
-                            ? " <span class='js-group-member-note' data-toggle='tooltip' data-placement='top' title='" + m.Note.EncodeHtml() + "'><i class='fa fa-file-text-o text-info'></i></span>"
-                            : string.Empty )
-                        + ( personIdsThatHaventSigned.Contains( m.PersonId )
-                            ? " <i class='fa fa-pencil-square-o text-danger'></i>"
-                            : string.Empty );
-                }
-
-                if ( showAttendance )
-                {
-                    var attendanceFirstLastRecord = attendanceFirstLast.GetValueOrNull( m.PersonId );
-                    if ( attendanceFirstLastRecord != null )
-                    {
-                        groupMemberDataRow.FirstAttended = attendanceFirstLastRecord.Start;
-                        groupMemberDataRow.LastAttended = attendanceFirstLastRecord.End;
-                    }
-                }
-
-                if ( isExporting )
-                {
-
-                    if ( homePhoneType != null )
-                    {
-                        groupMemberDataRow.HomePhone = m.Person.PhoneNumbers
-                                .Where( p => p.NumberTypeValueId.HasValue && p.NumberTypeValueId.Value == homePhoneType.Id )
-                                .Select( p => p.NumberFormatted )
-                                .FirstOrDefault();
-                    }
-
-                    if ( cellPhoneType != null )
-                    {
-                        groupMemberDataRow.CellPhone = m.Person.PhoneNumbers
-                                .Where( p => p.NumberTypeValueId.HasValue && p.NumberTypeValueId.Value == cellPhoneType.Id )
-                                .Select( p => p.NumberFormatted )
-                                .FirstOrDefault();
-                    }
-
-                    var homeLocation = homeLocations.GetValueOrNull( m.Id );
-                    if ( homeLocation != null )
-                    {
-                        groupMemberDataRow.HomeAddress = homeLocations[m.Id].FormattedAddress;
-                        groupMemberDataRow.Latitude = homeLocations[m.Id].Latitude;
-                        groupMemberDataRow.Longitude = homeLocations[m.Id].Longitude;
-                    }
-                }
-
-                return groupMemberDataRow;
-            }
-
-            ).ToList();
-            */
-
-            rockContext.SqlLogging( false );
-
-            /*if ( sortProperty != null )
-            {
-                if ( sortProperty.Property == "FirstAttended" )
-                {
-                    if ( sortProperty.Direction == SortDirection.Descending )
-                    {
-                        dataSource = dataSource.OrderByDescending( a => a.FirstAttended ?? DateTime.MinValue ).ToList();
-                    }
-                    else
-                    {
-                        dataSource = dataSource.OrderBy( a => a.FirstAttended ?? DateTime.MinValue ).ToList();
-                    }
-                }
-
-                if ( sortProperty.Property == "LastAttended" )
-                {
-                    if ( sortProperty.Direction == SortDirection.Descending )
-                    {
-                        dataSource = dataSource.OrderByDescending( a => a.LastAttended ?? DateTime.MinValue ).ToList();
-                    }
-                    else
-                    {
-                        dataSource = dataSource.OrderBy( a => a.LastAttended ?? DateTime.MinValue ).ToList();
-                    }
-                }
-            }*/
 
             gGroupMembers.SetLinqDataSource( qry );
             gGroupMembers.DataBind();
@@ -1591,65 +1536,4 @@ namespace RockWeb.Blocks.Groups
 
         #endregion
     }
-    /*
-    /// <summary>
-    ///
-    /// </summary>
-    /// <seealso cref="DotLiquid.Drop" />
-    public class GroupMemberDataRow : DotLiquid.Drop
-    {
-        public int Id { get; set; }
-
-        public Guid Guid { get; set; }
-
-        public int PersonId { get; set; }
-
-        public string NickName { get; set; }
-
-        public string LastName { get; set; }
-
-        public string Name { get; set; }
-
-        public DateTime? BirthDate { get; set; }
-
-        public int? Age { get; set; }
-
-        public int? ConnectionStatusValueId { get; set; }
-
-        public DateTime? DateTimeAdded { get; set; }
-
-        public string Note { get; set; }
-
-        public DateTime? FirstAttended { get; set; }
-
-        public DateTime? LastAttended { get; set; }
-
-        public string Email { get; set; }
-
-        public string Gender { get; set; }
-
-        public string HomePhone { get; set; }
-
-        public string CellPhone { get; set; }
-
-        public string HomeAddress { get; set; }
-
-        public double? Latitude { get; set; }
-
-        public double? Longitude { get; set; }
-
-        public string GroupRole { get; set; }
-
-        public GroupMemberStatus GroupMemberStatus { get; set; }
-
-        public int? RecordStatusValueId { get; set; }
-
-        public bool IsDeceased { get; set; }
-
-        public int? MaritalStatusValueId { get; set; }
-
-        public int GroupRoleId { get; set; }
-
-        public bool IsArchived { get; set; }
-    }*/
 }
