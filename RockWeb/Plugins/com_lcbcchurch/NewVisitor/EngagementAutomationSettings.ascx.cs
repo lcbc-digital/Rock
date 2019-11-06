@@ -27,11 +27,11 @@ using Rock.Model;
 using Rock.Utility.Settings.DataAutomation;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
-using com.lcbcChurch.NewVisitor.Settings;
-using com.lcbcChurch.NewVisitor.SystemKey;
+using com.lcbcchurch.NewVisitor.Settings;
+using com.lcbcchurch.NewVisitor.SystemKey;
 using Newtonsoft.Json;
 
-namespace RockWeb.Plugins.com_lcbcChurch.NewVisitor
+namespace RockWeb.Plugins.com_lcbcchurch.NewVisitor
 {
     /// <summary>
     /// Engagement Automation Settings

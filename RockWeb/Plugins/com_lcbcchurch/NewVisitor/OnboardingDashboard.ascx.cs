@@ -27,12 +27,12 @@ using Rock.Web.UI.Controls;
 using System.Web.UI.WebControls;
 using Rock.Web.Cache;
 using Rock.Reporting;
-using com.lcbcChurch.NewVisitor.SystemKey;
-using com.lcbcChurch.NewVisitor.Settings;
+using com.lcbcchurch.NewVisitor.SystemKey;
+using com.lcbcchurch.NewVisitor.Settings;
 using Rock.Transactions;
 using Newtonsoft.Json;
 
-namespace RockWeb.Plugins.com_lcbcChurch.NewVisitor
+namespace RockWeb.Plugins.com_lcbcchurch.NewVisitor
 {
     /// <summary>
     ///

@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="EngagementAutomationSettings.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcChurch.NewVisitor.EngagementAutomationSettings" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="EngagementAutomationSettings.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcchurch.NewVisitor.EngagementAutomationSettings" %>
 
 <script type="text/javascript">
     function clearActiveDialog() {

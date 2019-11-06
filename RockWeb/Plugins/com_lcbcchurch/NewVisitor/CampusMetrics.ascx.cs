@@ -32,7 +32,7 @@ using Rock.Web.UI;
 using Rock.Utility;
 using Rock.Field.Types;
 
-namespace RockWeb.Plugins.com_lcbcChurch.NewVisitor
+namespace RockWeb.Plugins.com_lcbcchurch.NewVisitor
 {
     /// <summary>
     ///

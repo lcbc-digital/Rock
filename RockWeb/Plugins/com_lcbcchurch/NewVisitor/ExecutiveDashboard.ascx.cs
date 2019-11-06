@@ -28,7 +28,7 @@ using System.Web.UI.WebControls;
 using Rock.Web.Cache;
 using Rock.Reporting;
 
-namespace RockWeb.Plugins.com_lcbcChurch.NewVisitor
+namespace RockWeb.Plugins.com_lcbcchurch.NewVisitor
 {
     /// <summary>
     ///

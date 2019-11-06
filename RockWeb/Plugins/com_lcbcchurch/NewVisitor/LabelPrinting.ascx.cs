@@ -31,7 +31,7 @@ using Rock.Web.Cache;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
 
-namespace RockWeb.Plugins.com_lcbcChurch.NewVisitor
+namespace RockWeb.Plugins.com_lcbcchurch.NewVisitor
 {
     /// <summary>
     /// 

@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="OnboardingDashboard.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcChurch.NewVisitor.OnboardingDashboard" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="OnboardingDashboard.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcchurch.NewVisitor.OnboardingDashboard" %>
 
 <asp:UpdatePanel ID="upnlContent" runat="server">
     <ContentTemplate>

@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="CampusMetrics.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcChurch.NewVisitor.CampusMetrics" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="CampusMetrics.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcchurch.NewVisitor.CampusMetrics" %>
 
 <style type="text/css">
     .table thead th.total {

@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="LabelPrinting.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcChurch.NewVisitor.LabelPrinting" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="LabelPrinting.ascx.cs" Inherits="RockWeb.Plugins.com_lcbcchurch.NewVisitor.LabelPrinting" %>
 
 <asp:UpdatePanel ID="upnlContent" runat="server">
     <Triggers>
