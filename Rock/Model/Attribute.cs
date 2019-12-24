@@ -276,7 +276,7 @@ namespace Rock.Model
         /// </value>
         [MaxLength( 100 )]
         [DataMember]
-        public string  AbbreviatedName
+        public string AbbreviatedName
         {
             get
             {
@@ -292,8 +292,22 @@ namespace Rock.Model
                 _abbreviatedName = value;
             }
         }
-
         private string _abbreviatedName;
+
+        /// <summary>
+        /// Indicates whether or not this attribute should be displayed in public contexts (e.g., responding to an RSVP without logging in).
+        /// </summary>
+        /// <value>
+        /// A boolean value.
+        /// </value>
+        [DataMember]
+        public bool IsPublic { get; set; }
+
+        /// <summary>
+        /// Gets or sets a flag indicating if this attribute shows when doing a bulk entry form.
+        /// </summary>
+        [DataMember]
+        public bool ShowOnBulk { get; set; }
 
         #endregion
 

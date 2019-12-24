@@ -19,7 +19,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
-using System.Web;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Field;
@@ -155,6 +154,12 @@ namespace Rock.Reporting
         }
 
         /// <summary>
+        /// Getting EntityFields can take 10ms+ or so, so only get them once per thread (per request or per job execution)
+        /// </summary>
+        [ThreadStatic]
+        private static Dictionary<string, List<EntityField>> _entityFieldsLookup = null;
+
+        /// <summary>
         /// Gets the entity fields for a specific Entity
         /// </summary>
         /// <param name="entityType">Type of the entity.</param>
@@ -167,13 +172,11 @@ namespace Rock.Reporting
             List<EntityField> entityFields = null;
             _workflowTypeNameLookup = null;
 
-            if ( HttpContext.Current != null )
+            _entityFieldsLookup = _entityFieldsLookup ?? new Dictionary<string, List<EntityField>>();
+            entityFields = _entityFieldsLookup.GetValueOrNull( EntityHelper.GetCacheKey( entityType, entity, includeOnlyReportingFields, limitToFilterableFields ) );
+            if ( entityFields != null )
             {
-                entityFields = HttpContext.Current.Items[EntityHelper.GetCacheKey( entityType, entity, includeOnlyReportingFields, limitToFilterableFields )] as List<EntityField>;
-                if ( entityFields != null )
-                {
-                    return entityFields;
-                }
+                return entityFields;
             }
 
             if ( entityFields == null )
@@ -195,33 +198,22 @@ namespace Rock.Reporting
                         return true;
                     }
 
-                    // if marked as NotMapped, don't include it since it won't work in a LinqToEntity expression
-                    var notMapped = p.GetCustomAttribute<NotMappedAttribute>() != null;
-
                     bool hideFromReporting = false;
                     if ( includeOnlyReportingFields )
                     {
                         hideFromReporting = p.GetCustomAttribute<HideFromReportingAttribute>() != null;
                     }
 
-                    // if the property has NotMappedAttribute or should be hidden from reporting, don't show it
-                    if ( notMapped || hideFromReporting )
+                    // if the property should be hidden from reporting, don't show it
+                    if ( hideFromReporting )
                     {
                         return false;
                     }
 
-                    // if the property is marked virtual (unless it is 'virtual final'), don't include it since it isn't a real database field
-                    var getter = p.GetGetMethod();
-                    var isVirtual = getter?.IsVirtual == true;
-                    if ( isVirtual )
+                    bool isMappedDatabaseField = Reflection.IsMappedDatabaseProperty( p );
+                    if ( !isMappedDatabaseField )
                     {
-                        // NOTE: Properties that implement interface members (for example Rock.Data.IOrder) will also be marked as 'virtual final' by the compiler, so check IsFinal to determine if it was the compiler that did it.
-                        // See https://docs.microsoft.com/en-us/dotnet/api/system.reflection.methodbase.isfinal?redirectedfrom=MSDN&view=netframework-4.7.2#System_Reflection_MethodBase_IsFinal
-                        bool isVirtualDueToInterface = getter?.IsFinal == true;
-                        if ( !isVirtualDueToInterface )
-                        {
-                            return false;
-                        }
+                        return false;
                     }
 
                     return true;
@@ -297,7 +289,7 @@ namespace Rock.Reporting
                     if ( definedValueAttribute != null )
                     {
                         // Defined Value Properties
-                        Guid? definedTypeGuid = ( ( Rock.Data.DefinedValueAttribute ) definedValueAttribute ).DefinedTypeGuid;
+                        Guid? definedTypeGuid = definedValueAttribute.DefinedTypeGuid;
                         if ( definedTypeGuid.HasValue )
                         {
                             var definedType = DefinedTypeCache.Get( definedTypeGuid.Value );
@@ -397,10 +389,7 @@ namespace Rock.Reporting
                 sortedFields.Add( entityField );
             }
 
-            if ( HttpContext.Current != null )
-            {
-                HttpContext.Current.Items[EntityHelper.GetCacheKey( entityType, entity, includeOnlyReportingFields, limitToFilterableFields )] = sortedFields;
-            }
+            _entityFieldsLookup.AddOrReplace( EntityHelper.GetCacheKey( entityType, entity, includeOnlyReportingFields, limitToFilterableFields ), sortedFields );
 
             return sortedFields;
         }
