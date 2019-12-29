@@ -225,64 +225,67 @@ namespace Rock.Tests.Integration.Communications
         /// </summary>
         private void AddTestDataForEmailCommunications()
         {
-            List<Guid> recipientGuidList;
-            List<CommunicationRecipientStatus> availableStatusList;
-            Dictionary<Guid, int> personMap;
+            //List<Guid> recipientGuidList;
+            //List<CommunicationRecipientStatus> availableStatusList;
+            //Dictionary<Guid, int> personMap;
+            //List<Guid> communicationMediumGuidList;
 
-            var dataContext = new RockContext();
+            //var dataContext = new RockContext();
 
-            // Add email for 1 recipient.
-            var singleCommunication = this.CreateEmailCommunication( dataContext,
-                Constants.TestCommunicationSingleEmail1Guid,
-                new DateTime( 2019, 1, 30 ),
-                "Welcome to Our Church!",
-                "This is a test message....",
-                new DateTime( 2019, 1, 30 ),
-                TestPeople.AlishaMarblePersonGuid,
-                TestPeople.BillMarblePersonGuid );
+            //// Add email for 1 recipient.
+            //var singleCommunication = this.CreateEmailCommunication( dataContext,
+            //    Constants.TestCommunicationSingleEmail1Guid,
+            //    new DateTime( 2019, 1, 30 ),
+            //    "Welcome to Our Church!",
+            //    "This is a test message....",
+            //    new DateTime( 2019, 1, 30 ),
+            //    TestPeople.AlishaMarblePersonGuid,
+            //    TestPeople.BillMarblePersonGuid );
 
-            recipientGuidList = new List<Guid> { TestPeople.TedDeckerPersonGuid, TestPeople.SarahSimmonsPersonGuid };
-            availableStatusList = GetAvailableCommunicationStatusList( 0, 0, 0 );
+            //recipientGuidList = new List<Guid> { TestPeople.TedDeckerPersonGuid, TestPeople.SarahSimmonsPersonGuid };
+            //availableStatusList = GetAvailableCommunicationStatusList( 0, 0, 0 );
+            //communicationMediumGuidList = new List<Guid> { SystemGuid.EntityType.COMMUNICATION_MEDIUM_EMAIL.AsGuid() };
 
-            this.CreateCommunicationRecipients( dataContext, singleCommunication, recipientGuidList, availableStatusList );
-            this.CreateCommunicationInteractions( dataContext, singleCommunication, 1 );
+            //this.CreateCommunicationRecipients( dataContext, singleCommunication, recipientGuidList, availableStatusList, communicationMediumGuidList );
+            //this.CreateCommunicationInteractions( dataContextFactory, singleCommunication, 1 );
 
-            // Add bulk email to 50 recipients, all failed with no interactions.
-            var bulkCommunicationFailed = this.CreateEmailCommunication( dataContext,
-                Constants.TestCommunicationBulkEmailNoInteractionsGuid,
-                new DateTime( 2019, 1, 30 ),
-                "Bulk Email - Test - All Failed",
-                "This message has no successful recipients and no interactions.",
-                new DateTime( 2019, 1, 30 ),
-                TestPeople.AlishaMarblePersonGuid,
-                TestPeople.BillMarblePersonGuid,
-                isBulk: true );
+            //// Add bulk email to 50 recipients, all failed with no interactions.
+            //var bulkCommunicationFailed = this.CreateEmailCommunication( dataContext,
+            //    Constants.TestCommunicationBulkEmailNoInteractionsGuid,
+            //    new DateTime( 2019, 1, 30 ),
+            //    "Bulk Email - Test - All Failed",
+            //    "This message has no successful recipients and no interactions.",
+            //    new DateTime( 2019, 1, 30 ),
+            //    TestPeople.AlishaMarblePersonGuid,
+            //    TestPeople.BillMarblePersonGuid,
+            //    isBulk: true );
 
-            personMap = this.GetPersonGuidToAliasIdMap( dataContext );
+            //personMap = this.GetPersonGuidToAliasIdMap( dataContext );
 
-            recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 50 );
-            availableStatusList = GetAvailableCommunicationStatusList( 0, 100, 0 );
+            //recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 50 );
+            //availableStatusList = GetAvailableCommunicationStatusList( 0, 100, 0 );
 
-            this.CreateCommunicationRecipients( dataContext, bulkCommunicationFailed, recipientGuidList, availableStatusList );
+            //this.CreateCommunicationRecipients( dataContext, bulkCommunicationFailed, recipientGuidList, availableStatusList, communicationMediumGuidList );
 
-            // Add bulk email to 225 recipients, with associated interactions.
-            var bulkCommunication = this.CreateEmailCommunication( dataContext,
-                Constants.TestCommunicationBulkEmail1Guid,
-                new DateTime( 2019, 1, 30 ),
-                "Bulk Email Test 1",
-                "This is a test message....",
-                new DateTime( 2019, 1, 30 ),
-                TestPeople.AlishaMarblePersonGuid,
-                TestPeople.BillMarblePersonGuid,
-                isBulk: true );
+            //// Add bulk email to 525 recipients via Email or SMS, with associated interactions.
+            //var bulkCommunication = this.CreateEmailCommunication( dataContextFactory,
+            //    Constants.TestCommunicationBulkEmail1Guid,
+            //    new DateTime( 2019, 1, 30 ),
+            //    "Bulk Email Test 1",
+            //    "This is a test message....",
+            //    new DateTime( 2019, 1, 30 ),
+            //    TestPeople.AlishaMarblePersonGuid,
+            //    TestPeople.BillMarblePersonGuid,
+            //    isBulk: true );
 
-            personMap = this.GetPersonGuidToAliasIdMap( dataContext );
+            //personMap = this.GetPersonGuidToAliasIdMap( dataContext );
 
-            recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 225 );
-            availableStatusList = GetAvailableCommunicationStatusList( 20, 10, 5 );
+            //recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 225 );
+            //availableStatusList = GetAvailableCommunicationStatusList( 20, 10, 5 );
+            //communicationMediumGuidList = new List<Guid> { SystemGuid.EntityType.COMMUNICATION_MEDIUM_EMAIL.AsGuid(), SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS.AsGuid() };
 
-            this.CreateCommunicationRecipients( dataContext, bulkCommunication, recipientGuidList, availableStatusList );
-            this.CreateCommunicationInteractions( dataContext, bulkCommunication, 0.5M );
+            //this.CreateCommunicationRecipients( dataContext, bulkCommunication, recipientGuidList, availableStatusList, communicationMediumGuidList );
+            //this.CreateCommunicationInteractions( dataContextFactory, bulkCommunication, 0.5M );
         }
 
         /// <summary>
@@ -290,48 +293,50 @@ namespace Rock.Tests.Integration.Communications
         /// </summary>
         private void AddTestDataForSmsCommunications()
         {
-            List<Guid> recipientGuidList;
-            List<CommunicationRecipientStatus> availableStatusList;
+            //List<Guid> recipientGuidList;
+            //List<CommunicationRecipientStatus> availableStatusList;
 
-            var dataContext = new RockContext();
+            //var dataContext = new RockContext();
 
-            var personMap = this.GetPersonGuidToAliasIdMap( dataContext );
+            //var personMap = this.GetPersonGuidToAliasIdMap( dataContext );
 
-            // Add an Outgoing SMS Sender
-            var definedValueService = new DefinedValueService( dataContext );
+            //// Add an Outgoing SMS Sender
+            //var definedValueService = new DefinedValueService( dataContext );
 
-            var smsSenders = DefinedTypeCache.GetOrThrow( "SMS From Values", SystemGuid.DefinedType.COMMUNICATION_SMS_FROM.AsGuid() );
+            //var smsSenders = DefinedTypeCache.GetOrThrow( "SMS From Values", SystemGuid.DefinedType.COMMUNICATION_SMS_FROM.AsGuid() );
 
-            var smsSender = new DefinedValue { DefinedTypeId = smsSenders.Id, Value = "+12345678900", Guid = Constants.TestSmsSenderGuid.AsGuid(), Order = 1 };
+            //var smsSender = new DefinedValue { DefinedTypeId = smsSenders.Id, Value = "+12345678900", Guid = Constants.TestSmsSenderGuid.AsGuid(), Order = 1 };
 
-            smsSender.SetAttributeValue( "EnableResponseRecipientForwarding", "false" );
+            //smsSender.SetAttributeValue( "EnableResponseRecipientForwarding", "false" );
 
-            definedValueService.Add( smsSender );
+            //definedValueService.Add( smsSender );
 
-            dataContext.SaveChanges();
+            //dataContext.SaveChanges();
 
-            var smsSenderId = smsSender.Id;
+            //var smsSenderId = smsSender.Id;
 
-            // Add bulk SMS to 175 recipients.
-            var bulkSms = this.CreateSmsCommunication( dataContext,
-                Constants.TestCommunicationBulkSmsGuid,
-                new DateTime( 2019, 1, 29 ),
-                "SMS Test 1",
-                "This is a test SMS...",
-                new DateTime( 2019, 1, 29 ),
-                TestPeople.BillMarblePersonGuid,
-                TestPeople.AlishaMarblePersonGuid,
-                smsSenderId,
-                isBulk: true );
+            //// Add bulk SMS to 175 recipients.
+            //var bulkSms = this.CreateSmsCommunication( dataContext,
+            //    Constants.TestCommunicationBulkSmsGuid,
+            //    new DateTime( 2019, 1, 29 ),
+            //    "SMS Test 1",
+            //    "This is a test SMS...",
+            //    new DateTime( 2019, 1, 29 ),
+            //    TestPeople.BillMarblePersonGuid,
+            //    TestPeople.AlishaMarblePersonGuid,
+            //    smsSenderId,
+            //    isBulk: true );
 
-            recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 175 );
-            availableStatusList = GetAvailableCommunicationStatusList( 20, 10, 0 );
+            //recipientGuidList = personMap.Keys.ToList().GetRandomizedList( 175 );
+            //availableStatusList = GetAvailableCommunicationStatusList( 20, 10, 0 );
 
-            this.CreateCommunicationRecipients( dataContext, bulkSms, recipientGuidList, availableStatusList );
-            this.CreateCommunicationInteractions( dataContext, bulkSms, 0M );
+            //var communicationMediumGuidList = new List<Guid> { SystemGuid.EntityType.COMMUNICATION_MEDIUM_SMS.AsGuid() };
 
-            this.AddNamelessPersonRecords();
-            this.AddNamelessSmsConversation();
+            //this.CreateCommunicationRecipients( dataContext, bulkSms, recipientGuidList, availableStatusList, communicationMediumGuidList );
+            //this.CreateCommunicationInteractions( dataContextFactory, bulkSms, 0M );
+
+            //this.AddNamelessPersonRecords();
+            //this.AddNamelessSmsConversation();
         }
 
         /// <summary>
@@ -610,18 +615,27 @@ namespace Rock.Tests.Integration.Communications
         /// <param name="communication"></param>
         /// <param name="recipientPersonGuidList"></param>
         /// <param name="possibleRecipientStatusList"></param>
-        private void CreateCommunicationRecipients( RockContext dataContext, Rock.Model.Communication communication, List<Guid> recipientPersonGuidList, List<CommunicationRecipientStatus> possibleRecipientStatusList )
+        private void CreateCommunicationRecipients( RockContext dataContext, Rock.Model.Communication communication, List<Guid> recipientPersonGuidList, List<CommunicationRecipientStatus> possibleRecipientStatusList, List<Guid> possibleMediumEntityGuidList )
         {
             int communicationId = communication.Id;
 
             // Add recipients
             var recipientService = new CommunicationRecipientService( dataContext );
-            var interactionService = new InteractionService( dataContext );
 
             var communicationDateTime = communication.SendDateTime ?? communication.CreatedDateTime ?? DateTime.Now;
 
             var personMap = this.GetPersonGuidToAliasIdMap( dataContext );
 
+            var failureReasonList = new List<string>();
+
+            failureReasonList.Add( "No Email Address." );
+            failureReasonList.Add( "Email is not active." );
+            failureReasonList.Add( "Communication Preference of 'No Bulk Communication'." );
+            failureReasonList.Add( "Communication Preference of 'Do Not Send Communication'." );
+            failureReasonList.Add( "Person is deceased." );
+            failureReasonList.Add( "Delivery to this address has previously bounced." );
+            failureReasonList.Add( "User has marked your messages as spam." );
+            
             foreach ( var recipientPersonGuid in recipientPersonGuidList )
             {
                 var recipientPersonAliasId = personMap[recipientPersonGuid];
@@ -638,6 +652,8 @@ namespace Rock.Tests.Integration.Communications
 
                 newRecipient.Status = status;
 
+                newRecipient.MediumEntityTypeId = EntityTypeCache.GetId( possibleMediumEntityGuidList.GetRandomElement() ).Value;
+
                 if ( status == CommunicationRecipientStatus.Opened )
                 {
                     // Get a randomized open time for the communication, within 7 days after it was sent.
@@ -646,6 +662,11 @@ namespace Rock.Tests.Integration.Communications
                     newRecipient.OpenedDateTime = openedDateTime;
 
                     newRecipient.OpenedClient = "Gmail";
+                }
+                else if (status == CommunicationRecipientStatus.Failed )
+                {
+                    // Add a failure reason.
+                    newRecipient.StatusNote = failureReasonList.GetRandomElement();
                 }
 
                 recipientService.Add( newRecipient );
@@ -665,95 +686,112 @@ namespace Rock.Tests.Integration.Communications
         /// <param name="probabilityOfMultipleInteractions">Specifies the probability that any given recipient has more than one interaction recorded for this Communication</param>
         private void CreateCommunicationInteractions( RockContext dataContext, Rock.Model.Communication communication, decimal probabilityOfMultipleInteractions )
         {
-            var interactionChannelCommunication = new InteractionChannelService( dataContext ).Get( Rock.SystemGuid.InteractionChannel.COMMUNICATION.AsGuid() );
+            //var interactionChannelCommunication = new InteractionChannelService( dataContext ).Get( Rock.SystemGuid.InteractionChannel.COMMUNICATION.AsGuid() );
 
-            var interactionService = new InteractionService( dataContext );
-            var recipientService = new CommunicationRecipientService( dataContext );
+            //var interactionService = new InteractionService( dataContext );
+            //var recipientService = new CommunicationRecipientService( dataContext );
 
-            // Get or create a new interaction component for this communication.
-            var communicationId = communication.Id;
+            //// Get or create a new interaction component for this communication.
+            //var communicationId = communication.Id;
 
-            var componentService = new InteractionComponentService( dataContext );
+            //var componentService = new InteractionComponentService( dataContext );
 
-            var interactionComponent = componentService.GetComponentByEntityId( Rock.SystemGuid.InteractionChannel.COMMUNICATION.AsGuid(),
-                                    communicationId,
-                                    communication.Subject );
+            //var interactionComponent = componentService.GetComponentByEntityId( Rock.SystemGuid.InteractionChannel.COMMUNICATION.AsGuid(),
+            //                        communicationId,
+            //                        communication.Subject );
 
-            dataContext.SaveChanges();
+            //dataContext.SaveChanges();
 
-            // Create an interaction for each communication recipient that has opened the communication.
-            var recipients = recipientService.Queryable()
-                .AsNoTracking()
-                .Where( x => x.CommunicationId == communicationId
-                             && x.Status == CommunicationRecipientStatus.Opened );
+            //// Create an interaction for each communication recipient where the communication has been opened or delivered.
+            //// An interaction may occur for a communication that is marked as delivered but not opened if the user opts to open the message without loading associated images.
+            //var recipients = recipientService.Queryable()
+            //    .AsNoTracking()
+            //    .Where( x => x.CommunicationId == communicationId
+            //                 && x.Status == CommunicationRecipientStatus.Opened );
 
-            foreach ( var recipient in recipients )
-            {
-                var clientIp = string.Format( "192.168.2.{0}", _Rng.Next( 0, 256 ) );
-                var clientOs = _ValidClientOsList.GetRandomElement();
-                var clientBrowser = _ValidClientBrowserList.GetRandomElement();
-                var clientAgent = $"{clientBrowser} on {clientOs}";
-                var clientType = _ValidClientTypeList.GetRandomElement();
+            //var emailMediumEntityTypeId = EntityTypeCache.GetId( SystemGuid.EntityType.COMMUNICATION_MEDIUM_EMAIL.AsGuid() ).Value;
 
-                DateTime interactionDateTime;
-                //= GetRandomTimeWithinDayWindow( communication.SendDateTime.Value, 7 );
+            //foreach ( var recipient in recipients )
+            //{
+            //    // Only create interactions for email messages.
+            //    if ( recipient.MediumEntityTypeId != emailMediumEntityTypeId )
+            //    {
+            //        continue;
+            //    }
 
-                // Add an "Opened" interaction.
-                var openedDateTime = recipient.OpenedDateTime ?? communication.SendDateTime.GetValueOrDefault();
+            //    dataContext = dataContextFactory.GetDataContext();
 
-                var newInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Opened", "", recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
+            //    if ( interactionService == null
+            //         || dataContextFactory.CurrentAccessCount == 1 )
+            //    {
+            //        interactionService = new InteractionService( dataContext );
+            //    }
 
-                newInteraction.ForeignKey = _TestDataSourceOfChange;
+            //    var clientIp = string.Format( "192.168.2.{0}", _Rng.Next( 0, 256 ) );
+            //    var clientOs = _ValidClientOsList.GetRandomElement();
+            //    var clientBrowser = _ValidClientBrowserList.GetRandomElement();
+            //    var clientAgent = $"{clientBrowser} on {clientOs}";
+            //    var clientType = _ValidClientTypeList.GetRandomElement();
 
-                // Add additional interactions.
-                var hasMultipleInteractions = _Rng.Next( 1, 101 ) < probabilityOfMultipleInteractions * 100;
+            //    DateTime interactionDateTime;
+            //    //= GetRandomTimeWithinDayWindow( communication.SendDateTime.Value, 7 );
 
-                int additionalOpens = 0;
-                int totalClicks = 0;
+            //    // Add an "Opened" interaction.
+            //    var openedDateTime = recipient.OpenedDateTime ?? communication.SendDateTime.GetValueOrDefault();
 
-                if ( hasMultipleInteractions )
-                {
-                    // Add more Opens...
-                    additionalOpens = _Rng.Next( 1, 5 );
+            //    var newInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Opened", "", recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
 
-                    for ( int i = 0; i < additionalOpens; i++ )
-                    {
-                        interactionDateTime = GetRandomTimeWithinDayWindow( openedDateTime, 7 );
+            //    newInteraction.ForeignKey = _TestDataSourceOfChange;
 
-                        var openInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Opened", "", recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
+            //    // Add additional interactions.
+            //    var hasMultipleInteractions = _Rng.Next( 1, 101 ) < probabilityOfMultipleInteractions * 100;
 
-                        openInteraction.ForeignKey = _TestDataSourceOfChange;
-                    }
+            //    int additionalOpens = 0;
+            //    int totalClicks = 0;
 
-                    // Add some Clicks...
-                    totalClicks = _Rng.Next( 1, 5 );
+            //    if ( hasMultipleInteractions )
+            //    {
+            //        // Add more Opens...
+            //        additionalOpens = _Rng.Next( 1, 5 );
 
-                    string clickUrl = null;
-                    bool changeUrl = true;
+            //        for ( int i = 0; i < additionalOpens; i++ )
+            //        {
+            //            interactionDateTime = GetRandomTimeWithinDayWindow( openedDateTime, 7 );
 
-                    for ( int i = 0; i < totalClicks; i++ )
-                    {
-                        interactionDateTime = GetRandomTimeWithinDayWindow( openedDateTime, 7 );
+            //            var openInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Opened", "", recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
 
-                        if ( changeUrl )
-                        {
-                            clickUrl = string.Format( "https://communication/link/{0}", i );
-                        }
+            //            openInteraction.ForeignKey = _TestDataSourceOfChange;
+            //        }
 
-                        var clickInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Click", clickUrl, recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
+            //        // Add some Clicks...
+            //        totalClicks = _Rng.Next( 1, 5 );
 
-                        clickInteraction.ForeignKey = _TestDataSourceOfChange;
+            //        string clickUrl = null;
+            //        bool changeUrl = true;
 
-                        // Allow a 50% chance that the URL will remain the same for the next click also.
-                        changeUrl = _Rng.Next( 1, 101 ) < 50;
-                    }
+            //        for ( int i = 0; i < totalClicks; i++ )
+            //        {
+            //            interactionDateTime = GetRandomTimeWithinDayWindow( openedDateTime, 7 );
 
-                }
+            //            if ( changeUrl )
+            //            {
+            //                clickUrl = string.Format( "https://communication/link/{0}", i );
+            //            }
 
-                Debug.Print( $"Added Communication Interaction. (CommunicationId={ communicationId }, Recipient={recipient.PersonAliasId}, Opens={additionalOpens + 1 }, Clicks={ totalClicks })" );
-            }
+            //            var clickInteraction = interactionService.AddInteraction( interactionComponent.Id, recipient.Id, "Click", clickUrl, recipient.PersonAliasId, openedDateTime, clientBrowser, clientOs, clientType, clientAgent, clientIp, null );
 
-            dataContext.SaveChanges();
+            //            clickInteraction.ForeignKey = _TestDataSourceOfChange;
+
+            //            // Allow a 50% chance that the URL will remain the same for the next click also.
+            //            changeUrl = _Rng.Next( 1, 101 ) < 50;
+            //        }
+
+            //    }
+
+            //    Debug.Print( $"Added Communication Interaction. (CommunicationId={ communicationId }, Recipient={recipient.PersonAliasId}, Opens={additionalOpens + 1 }, Clicks={ totalClicks })" );
+            //}
+
+            //dataContext.SaveChanges();
         }
 
         #endregion

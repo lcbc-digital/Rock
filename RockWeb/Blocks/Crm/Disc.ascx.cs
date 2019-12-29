@@ -125,7 +125,7 @@ namespace Rockweb.Blocks.Crm
             public const string AssessmentId = "AssessmentId";
 
             /// <summary>
-            /// The ULR encoded key for a person
+            /// The URL encoded key for a person
             /// </summary>
             public const string Person = "Person";
         }
@@ -220,7 +220,8 @@ namespace Rockweb.Blocks.Crm
             {
                 try
                 {
-                    _targetPerson = new PersonService( new RockContext() ).GetByUrlEncodedKey( personKey );
+                    var personService = new PersonService( new RockContext() );
+                    _targetPerson = personService.GetByPersonActionIdentifier( personKey, "Assessment" ) ?? personService.GetByUrlEncodedKey( personKey );
                     _isQuerystringPersonKey = true;
                 }
                 catch ( Exception )
@@ -296,7 +297,7 @@ namespace Rockweb.Blocks.Crm
                         if ( _targetPerson.Id != CurrentPerson.Id )
                         {
                             // If the current person is not the target person and there are no results to show then show a not taken message.
-                            HidePanelsAndShowError( string.Format("{0} does not have results for the EQ Inventory Assessment.", _targetPerson.FullName ) );
+                            HidePanelsAndShowError( string.Format("{0} does not have results for the DISC Assessment.", _targetPerson.FullName ) );
                         }
                         else
                         {

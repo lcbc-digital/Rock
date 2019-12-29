@@ -80,7 +80,7 @@ namespace Rock.Attribute
                 int properties = 0;
                 foreach ( var customAttribute in type.GetCustomAttributes( typeof( ContextAwareAttribute ), true ) )
                 {
-                    var contextAttribute = ( ContextAwareAttribute )customAttribute;
+                    var contextAttribute = ( ContextAwareAttribute ) customAttribute;
                     if ( contextAttribute != null && contextAttribute.IsConfigurable )
                     {
                         string propertyKeyName = string.Format( "ContextEntityType{0}", properties > 0 ? properties.ToString() : "" );
@@ -399,8 +399,8 @@ namespace Rock.Attribute
             if ( entity is Rock.Attribute.IHasInheritedAttributes )
             {
                 rockContext = rockContext ?? new RockContext();
-                allAttributes = ( (Rock.Attribute.IHasInheritedAttributes)entity ).GetInheritedAttributes( rockContext );
-                altEntityIds = ( (Rock.Attribute.IHasInheritedAttributes)entity ).GetAlternateEntityIds( rockContext );
+                allAttributes = ( ( Rock.Attribute.IHasInheritedAttributes ) entity ).GetInheritedAttributes( rockContext );
+                altEntityIds = ( ( Rock.Attribute.IHasInheritedAttributes ) entity ).GetAlternateEntityIds( rockContext );
             }
 
             allAttributes = allAttributes ?? new List<AttributeCache>();
@@ -490,24 +490,33 @@ namespace Rock.Attribute
 
                     if ( attributeIds.Count != 1 )
                     {
-                        // a Linq query that uses 'Contains' can't be cached in the EF Plan Cache, so instead of doing a Contains, build a List of OR conditions. This can save 15-20ms per call (and still ends up with the exact same SQL)
-                        var parameterExpression = attributeValueService.ParameterExpression;
-                        MemberExpression propertyExpression = Expression.Property( parameterExpression, "AttributeId" );
-                        Expression expression = null;
-                        foreach ( var attributeId in attributeIds )
+                        if ( attributeIds.Count >= 1000 )
                         {
-                            Expression attributeIdValue = Expression.Constant( attributeId );
-                            if ( expression != null )
-                            {
-                                expression = Expression.Or( expression, Expression.Equal( propertyExpression, attributeIdValue ) );
-                            }
-                            else
-                            {
-                                expression = Expression.Equal( propertyExpression, attributeIdValue );
-                            }
+                            // the linq Expression.Or tree gets too big if there is more than 1000 attributes, so just do a contains instead
+                            attributeValueQuery = attributeValueQuery.Where( v => attributeIds.Contains( v.AttributeId ) );
                         }
+                        else
+                        {
+                            // a Linq query that uses 'Contains' can't be cached in the EF Plan Cache, so instead of doing a Contains, build a List of OR conditions. This can save 15-20ms per call (and still ends up with the exact same SQL)
+                            var parameterExpression = attributeValueService.ParameterExpression;
+                            MemberExpression propertyExpression = Expression.Property( parameterExpression, "AttributeId" );
+                            Expression expression = null;
 
-                        attributeValueQuery = attributeValueQuery.Where( parameterExpression, expression );
+                            foreach ( var attributeId in attributeIds )
+                            {
+                                Expression attributeIdValue = Expression.Constant( attributeId );
+                                if ( expression != null )
+                                {
+                                    expression = Expression.Or( expression, Expression.Equal( propertyExpression, attributeIdValue ) );
+                                }
+                                else
+                                {
+                                    expression = Expression.Equal( propertyExpression, attributeIdValue );
+                                }
+                            }
+
+                            attributeValueQuery = attributeValueQuery.Where( parameterExpression, expression );
+                        }
                     }
                     else
                     {

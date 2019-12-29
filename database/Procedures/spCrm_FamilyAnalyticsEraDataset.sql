@@ -79,7 +79,7 @@ BEGIN
     DECLARE @SundayExitAttendanceDurationLong DATETIME = DATEADD(DAY, (7 * @ExitAttendanceDurationLongWeeks * - 1), @SundayDateStart)
     DECLARE @TempFinancialTransactionByDateAndGivingId TABLE (
         DistinctCount INT
-        ,GivingId VARCHAR(50)
+        ,GivingId NVARCHAR(50)
         ,TransactionDateTime DATETIME
        )
 

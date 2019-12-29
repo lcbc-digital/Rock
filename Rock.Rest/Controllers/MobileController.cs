@@ -14,16 +14,14 @@
 // limitations under the License.
 // </copyright>
 //
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.ServiceModel.Channels;
 using System.Web.Http;
 
+using Rock.Common.Mobile;
+using Rock.Common.Mobile.Enums;
 using Rock.Mobile;
-using Rock.Mobile.Common;
-using Rock.Mobile.Common.Enums;
 using Rock.Model;
 using Rock.Rest.Filters;
 using Rock.Security;
@@ -185,28 +183,28 @@ namespace Rock.Rest.Controllers
 
                                 interactionComponentId = interactionComponent.Id;
                             }
-                            else if ( mobileInteraction.ChannelGuid.HasValue && !string.IsNullOrWhiteSpace( mobileInteraction.ComponentName ) )
+                            else if ( mobileInteraction.ChannelId.HasValue )
                             {
-                                //
-                                // Try to find an existing interaction channel.
-                                //
-                                var interactionChannelId = interactionChannelService.Get( mobileInteraction.ChannelGuid.Value )?.Id;
+                                var interactionChannelId = mobileInteraction.ChannelId;
 
-                                //
-                                // If not found, skip this interaction.
-                                //
-                                if ( !interactionChannelId.HasValue )
+                                if ( mobileInteraction.ComponentId.HasValue )
+                                {
+                                    interactionComponentId = mobileInteraction.ComponentId.Value;
+                                }
+                                else if ( mobileInteraction.ComponentName.IsNotNullOrWhiteSpace() )
+                                {
+                                    //
+                                    // Get an existing or create a new component.
+                                    //
+                                    var interactionComponent = interactionComponentService.GetComponentByComponentName( interactionChannelId.Value, mobileInteraction.ComponentName );
+                                    rockContext.SaveChanges();
+
+                                    interactionComponentId = interactionComponent.Id;
+                                }
+                                else
                                 {
                                     continue;
                                 }
-
-                                //
-                                // Get an existing or create a new component.
-                                //
-                                var interactionComponent = interactionComponentService.GetComponentByComponentName( interactionChannelId.Value, mobileInteraction.ComponentName );
-                                rockContext.SaveChanges();
-
-                                interactionComponentId = interactionComponent.Id;
                             }
                             else
                             {
@@ -219,7 +217,7 @@ namespace Rock.Rest.Controllers
                             if ( interactionComponentId.HasValue )
                             {
                                 var interaction = interactionService.CreateInteraction( interactionComponentId.Value,
-                                    null,
+                                    mobileInteraction.EntityId,
                                     mobileInteraction.Operation,
                                     mobileInteraction.Summary,
                                     mobileInteraction.Data,

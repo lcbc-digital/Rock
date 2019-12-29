@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.UI;
+using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
 
 using Rock.Attribute;
@@ -169,6 +170,18 @@ namespace Rock.Web.UI.Controls
         {
             get => ViewState["LimitToShowInGridAttributes"] as bool? ?? false;
             set => ViewState["LimitToShowInGridAttributes"] = value;
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the category header/label should be displayed as tabs
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [display as tabs]; otherwise, <c>false</c>.
+        /// </value>
+        public bool DisplayAsTabs
+        {
+            get => ViewState["DisplayAsTabs"] as bool? ?? false;
+            set => ViewState["DisplayAsTabs"] = value;
         }
 
         /// <summary>
@@ -359,7 +372,7 @@ namespace Rock.Web.UI.Controls
             {
                 List<AttributeCategory> attributeCategories = GetFilteredAttributeCategories( item );
 
-                foreach ( var attributeCategory in attributeCategories )
+                foreach ( var attributeCategory in attributeCategories.OrderBy( a => a.Category == null ? 0 : a.Category.Order ) )
                 {
                     IEnumerable<AttributeCache> attributes = GetFilteredAttributesForCategory( attributeCategory );
 
@@ -514,9 +527,65 @@ namespace Rock.Web.UI.Controls
 
             // only show heading labels if ShowCategoryLabel and there is at least attribute to show
             bool showHeadingLabels = this.ShowCategoryLabel && attributeCategories.SelectMany( a => a.Attributes ).Any();
+            // only show heading labels if ShowCategoryLabel and there is at least one attribute with category name
+            bool displayAsTabs = this.DisplayAsTabs & attributeCategories.Where( a => a.CategoryName.IsNotNullOrWhiteSpace() ).SelectMany( a => a.Attributes ).Any();
 
             var exclude = ( ExcludedAttributes != null && ExcludedAttributes.Count() != 0 ) ? ExcludedAttributes.Select( k => k.Key ).ToList() : null;
-            Rock.Attribute.Helper.AddDisplayControls( item, attributeCategories, _phAttributes, exclude, showHeadingLabels );
+
+            if ( displayAsTabs )
+            {
+                HtmlGenericControl tabs = new HtmlGenericControl( "ul" );
+                tabs.AddCssClass( "nav nav-tabs margin-b-lg" );
+                _phAttributes.Controls.Add( tabs );
+
+                HtmlGenericControl tabContent = new HtmlGenericControl( "div" );
+                tabContent.AddCssClass( "tab-content" );
+                _phAttributes.Controls.Add( tabContent );
+
+                int tabIndex = 0;
+                foreach ( var attributeCategory in attributeCategories.OrderBy( a => a.Category == null ? 0 : a.Category.Order ) )
+                {
+                    string categoryName = "Attributes";
+                    string id = "Attributes";
+                    if ( attributeCategory.Category != null )
+                    {
+                        categoryName = attributeCategory.Category.Name.Trim();
+                        id = attributeCategory.Category.Id.ToString();
+                    }
+
+                    HtmlGenericControl parentControl = new HtmlGenericControl( "div" );
+                    parentControl.ID = id;
+                    parentControl.AddCssClass( "tab-pane fade in" );
+                    tabContent.Controls.Add( parentControl );
+                    var tabClientId = parentControl.ClientID;
+
+                    #region tabs
+                    HtmlGenericControl li = new HtmlGenericControl( "li" );
+                    HtmlGenericControl a = new HtmlGenericControl( "a" );
+                    a.Attributes.Add( "data-toggle", "tab" );
+                    a.Attributes.Add( "href", "#" + tabClientId );
+
+                    a.InnerText = categoryName;
+                    li.Controls.Add( a );
+                    tabs.Controls.Add( li );
+                    #endregion tabs
+
+                    if ( tabIndex == 0 )
+                    {
+                        parentControl.AddCssClass( "active" );
+                        li.AddCssClass( "active" );
+                    }
+
+                    tabIndex++;
+
+                    Rock.Attribute.Helper.AddDisplayControls( item, new List<AttributeCategory>() { attributeCategory }, parentControl, exclude, false );
+                }
+
+            }
+            else
+            {
+                Rock.Attribute.Helper.AddDisplayControls( item, attributeCategories, _phAttributes, exclude, showHeadingLabels );
+            }
         }
 
         #endregion Methods
